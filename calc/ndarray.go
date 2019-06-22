@@ -68,6 +68,15 @@ func (a *NDArray) dataIndex(index []int) int {
 	return dataIndex
 }
 
+func (a *NDArray) index(dataIndex int) []int {
+	index := make([]int, len(a.shape))
+	for i := len(a.shape) - 1; i >= 0; i-- {
+		index[i] = dataIndex % a.shape[i]
+		dataIndex /= a.shape[i]
+	}
+	return index
+}
+
 func (a *NDArray) Get(index []int) float64 {
 	return a.data[a.dataIndex(index)]
 }
@@ -145,6 +154,30 @@ func (a *NDArray) Div(b NDArray) NDArray {
 	copy(c.data, a.data)
 	for i := range c.data {
 		c.data[i] /= b.data[i]
+	}
+	return c
+}
+
+func (a *NDArray) Concat(b NDArray, axis int) NDArray {
+	// TODO: assert all sizes other than axis are equal
+	shape := make([]int, len(a.shape))
+	for i := range shape {
+		if i == axis {
+			shape[i] = a.shape[i] + b.shape[i]
+		} else {
+			shape[i] = a.shape[i]
+		}
+	}
+
+	c := Zeros(shape)
+	for i := range c.data {
+		index := c.index(i)
+		if index[axis] >= a.shape[axis] {
+			index[axis] -= a.shape[axis]
+			c.data[i] = b.Get(index)
+		} else {
+			c.data[i] = a.Get(index)
+		}
 	}
 	return c
 }
