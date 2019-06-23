@@ -105,10 +105,20 @@ func (e *evaluationVisitor) VisitSign(t *SignTensor) {
 	e.values[t.ID()] = v.Sign()
 }
 
+func (e *evaluationVisitor) VisitPowConstant(t *PowConstantTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.PowConstant(t.p)
+}
+
 func (e *evaluationVisitor) VisitConcat(t *ConcatTensor) {
 	v := e.value(t.as[0])
 	for _, a := range t.as[1:] {
 		v = v.Concat(e.value(a), t.axis)
 	}
 	e.values[t.ID()] = v
+}
+
+func (e *evaluationVisitor) VisitSum(t *SumTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Sum(t.axes...)
 }

@@ -99,6 +99,23 @@ func (g *gradientVisitor) VisitSign(t *SignTensor) {
 	panic("Sign is not differentiable")
 }
 
+func (g *gradientVisitor) VisitPowConstant(t *PowConstantTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, Mul(
+		delta,
+		Constant(calc.Constant(t.p, t.Shape()...)),
+		PowConstant(t.t, t.p-1.),
+	))
+}
+
 func (g *gradientVisitor) VisitConcat(t *ConcatTensor) {
 	// TODO: needs slice tensor
+}
+
+func (g *gradientVisitor) VisitSum(t *SumTensor) {
+	delta := g.collect(t)
+
+	// This will broadcast up to all the alements
+	g.push(t.t, delta)
 }

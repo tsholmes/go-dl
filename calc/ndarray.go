@@ -1,6 +1,7 @@
 package calc
 
 import (
+	"math"
 	"math/rand"
 	"strconv"
 )
@@ -62,6 +63,15 @@ func BroadcastShape(aShape []int, bShape []int) []int {
 		} else {
 			return nil
 		}
+	}
+	return outShape
+}
+
+func AggrShape(aShape []int, axes []int) []int {
+	outShape := make([]int, len(aShape))
+	copy(outShape, aShape)
+	for _, i := range axes {
+		outShape[i] = 1
 	}
 	return outShape
 }
@@ -234,5 +244,22 @@ func (a NDArray) Sign() NDArray {
 			arr.data[i] = 1.
 		}
 	}
+	return arr
+}
+
+func (a NDArray) PowConstant(e float64) NDArray {
+	arr := Zeros(a.Shape()...)
+	for i := range arr.data {
+		arr.data[i] = math.Pow(a.data[i], e)
+	}
+	return arr
+}
+
+func (a NDArray) Sum(axes ...int) NDArray {
+	arr := Zeros(AggrShape(a.shape, axes)...)
+	for i, v := range a.data {
+		arr.data[arr.dataIndexBroadcast(a.index(i))] += v
+	}
+
 	return arr
 }

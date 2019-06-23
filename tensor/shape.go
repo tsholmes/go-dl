@@ -20,3 +20,7 @@ func concat(axis int, as ...Tensor) []int {
 	}
 	return shape
 }
+
+func aggr(a Tensor, axes ...int) []int {
+	return calc.AggrShape(a.Shape(), axes)
+}

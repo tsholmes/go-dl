@@ -18,7 +18,9 @@ type TensorVisitor interface {
 	VisitDiv(t *DivTensor)
 	VisitAbs(t *AbsTensor)
 	VisitSign(t *SignTensor)
+	VisitPowConstant(t *PowConstantTensor)
 	VisitConcat(t *ConcatTensor)
+	VisitSum(t *SumTensor)
 }
 
 var nextID int64
@@ -156,6 +158,22 @@ func Sign(t Tensor) Tensor {
 	}
 }
 
+type PowConstantTensor struct {
+	baseTensor
+	t Tensor
+	p float64
+}
+
+func (t *PowConstantTensor) Visit(v TensorVisitor) { v.VisitPowConstant(t) }
+
+func PowConstant(t Tensor, p float64) Tensor {
+	return &PowConstantTensor{
+		baseTensor: base(t.Shape(), t),
+		t:          t,
+		p:          p,
+	}
+}
+
 type ConcatTensor struct {
 	baseTensor
 	axis int
@@ -170,4 +188,30 @@ func Concat(axis int, as ...Tensor) Tensor {
 		axis:       axis,
 		as:         as,
 	}
+}
+
+type SumTensor struct {
+	baseTensor
+	t    Tensor
+	axes []int
+}
+
+func (t *SumTensor) Visit(v TensorVisitor) { v.VisitSum(t) }
+
+func Sum(t Tensor, axes ...int) Tensor {
+	return &SumTensor{
+		baseTensor: base(aggr(t, axes...), t),
+		t:          t,
+		axes:       axes,
+	}
+}
+
+func Mean(t Tensor, axes ...int) Tensor {
+	div := 1
+	for _, i := range axes {
+		div *= t.Shape()[i]
+	}
+
+	s := Sum(t, axes...)
+	return Mul(s, Constant(calc.Constant(1./float64(div), s.Shape()...)))
 }
