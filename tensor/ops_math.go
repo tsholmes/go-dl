@@ -1,6 +1,8 @@
 package tensor
 
-import "github.com/tsholmes/go-dl/calc"
+import (
+	"github.com/tsholmes/go-dl/calc"
+)
 
 func Add(as ...Tensor) Tensor {
 	return &AddTensor{
@@ -136,4 +138,38 @@ func (g *gradientVisitor) VisitPowConstant(t *PowConstantTensor) {
 		Constant(calc.Constant(t.p, t.Shape()...)),
 		PowConstant(t.t, t.p-1.),
 	))
+}
+
+func MatMul(a Tensor, b Tensor, a1 int, a2 int) Tensor {
+	return &MatMulTensor{
+		baseTensor: base(matMul(a, b, a1, a2), a, b),
+		a:          a,
+		b:          b,
+		a1:         a1,
+		a2:         a2,
+	}
+}
+
+type MatMulTensor struct {
+	baseTensor
+	a  Tensor
+	b  Tensor
+	a1 int
+	a2 int
+}
+
+func (t *MatMulTensor) Visit(v TensorVisitor) { v.VisitMatMul(t) }
+
+func (e *evaluationVisitor) VisitMatMul(t *MatMulTensor) {
+	a := e.value(t.a)
+	b := e.value(t.b)
+
+	e.values[t.ID()] = a.MatMul(b, t.a1, t.a2)
+}
+
+func (g *gradientVisitor) VisitMatMul(t *MatMulTensor) {
+	delta := g.collect(t)
+
+	g.push(t.a, MatMul(delta, Transpose(t.b, t.a1, t.a2), t.a1, t.a2))
+	g.push(t.b, MatMul(Transpose(t.a, t.a1, t.a2), delta, t.a1, t.a2))
 }

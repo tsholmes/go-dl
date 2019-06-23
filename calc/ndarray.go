@@ -41,6 +41,7 @@ func BroadcastShape(aShape []int, bShape []int) []int {
 	if len(aShape) > len(bShape) {
 		return BroadcastShape(bShape, aShape)
 	} else if len(aShape) < len(bShape) {
+		// TODO: we don't actually handle adding dims in dataIndexBroadcast
 		naShape := make([]int, len(bShape))
 		for i := range naShape {
 			j := i - len(bShape) + len(aShape)
@@ -73,6 +74,30 @@ func AggrShape(aShape []int, axes []int) []int {
 	for _, i := range axes {
 		outShape[i] = 1
 	}
+	return outShape
+}
+
+func MatMulShape(aShape []int, bShape []int, a1 int, a2 int) []int {
+	if len(aShape) != len(bShape) {
+		return nil
+	}
+	if aShape[a2] != bShape[a1] {
+		return nil
+	}
+	tAShape := append([]int{}, aShape...)
+	tBShape := append([]int{}, bShape...)
+	tAShape[a1], tAShape[a2], tBShape[a1], tBShape[a2] = 1, 1, 1, 1
+
+	outShape := BroadcastShape(tAShape, tBShape)
+	outShape[a1] = aShape[a1]
+	outShape[a2] = bShape[a2]
+
+	return outShape
+}
+
+func TransposeShape(shape []int, a1 int, a2 int) []int {
+	outShape := append([]int{}, shape...)
+	outShape[a1], outShape[a2] = shape[a2], shape[a1]
 	return outShape
 }
 
@@ -161,6 +186,12 @@ func (a NDArray) String() string {
 		}
 	}
 	return string(out)
+}
+
+func (a NDArray) ForEach(f func(index []int, value float64)) {
+	for i := range a.data {
+		f(a.index(i), a.data[i])
+	}
 }
 
 func (a NDArray) Add(b NDArray) NDArray {
@@ -273,6 +304,35 @@ func (a NDArray) Greater(b NDArray) NDArray {
 		if bv > av {
 			arr.data[i] = 1.
 		}
+	}
+
+	return arr
+}
+
+func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
+	arr := Zeros(MatMulShape(a.shape, b.shape, a1, a2)...)
+
+	for i := range arr.data {
+		index := arr.index(i)
+		aIndex := append([]int{}, index...)
+		bIndex := append([]int{}, index...)
+
+		for j := 0; j < a.shape[a2]; j++ {
+			aIndex[a2], bIndex[a1] = j, j
+			arr.data[i] += a.Get(aIndex) * b.Get(bIndex)
+		}
+	}
+
+	return arr
+}
+
+func (a NDArray) Transpose(a1 int, a2 int) NDArray {
+	arr := Zeros(TransposeShape(a.shape, a1, a2)...)
+
+	for i := range arr.data {
+		index := arr.index(i)
+		index[a1], index[a2] = index[a2], index[a1]
+		arr.data[i] = a.Get(index)
 	}
 
 	return arr

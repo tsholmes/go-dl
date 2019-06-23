@@ -24,3 +24,11 @@ func concat(axis int, as ...Tensor) []int {
 func aggr(a Tensor, axes ...int) []int {
 	return calc.AggrShape(a.Shape(), axes)
 }
+
+func transpose(a Tensor, a1 int, a2 int) []int {
+	return calc.TransposeShape(a.Shape(), a1, a2)
+}
+
+func matMul(a Tensor, b Tensor, a1 int, a2 int) []int {
+	return calc.MatMulShape(a.Shape(), b.Shape(), a1, a2)
+}
