@@ -1,8 +1,11 @@
 package calc
 
-import "strconv"
+import (
+	"math/rand"
+	"strconv"
+)
 
-func Zeros(shape []int) NDArray {
+func Zeros(shape ...int) NDArray {
 	size := 1
 	for _, s := range shape {
 		size *= s
@@ -13,10 +16,22 @@ func Zeros(shape []int) NDArray {
 	}
 }
 
-func Ones(shape []int) NDArray {
-	arr := Zeros(shape)
+func Constant(val float64, shape ...int) NDArray {
+	arr := Zeros(shape...)
 	for i := range arr.data {
-		arr.data[i] = 1.0
+		arr.data[i] = val
+	}
+	return arr
+}
+
+func Ones(shape ...int) NDArray {
+	return Constant(1.0, shape...)
+}
+
+func RandomUniform(min float64, max float64, shape ...int) NDArray {
+	arr := Zeros(shape...)
+	for i := range arr.data {
+		arr.data[i] = min + rand.Float64()*(max-min)
 	}
 	return arr
 }
@@ -85,6 +100,10 @@ func (a NDArray) Set(index []int, value float64) {
 	a.data[a.dataIndex(index)] = value
 }
 
+func (a NDArray) Shape() []int {
+	return a.shape
+}
+
 func (a NDArray) String() string {
 	mods := make([]int, len(a.shape))
 	mods[len(a.shape)-1] = a.shape[len(a.shape)-1]
@@ -120,7 +139,7 @@ func (a NDArray) String() string {
 
 func (a NDArray) Add(b NDArray) NDArray {
 	// TODO: assert size equal
-	c := Zeros(a.shape)
+	c := Zeros(a.shape...)
 	copy(c.data, a.data)
 	for i := range c.data {
 		c.data[i] += b.data[i]
@@ -129,7 +148,7 @@ func (a NDArray) Add(b NDArray) NDArray {
 }
 
 func (a NDArray) MulConstant(b float64) NDArray {
-	c := Zeros(a.shape)
+	c := Zeros(a.shape...)
 	copy(c.data, a.data)
 	for i := range c.data {
 		c.data[i] *= b
@@ -139,7 +158,7 @@ func (a NDArray) MulConstant(b float64) NDArray {
 
 func (a NDArray) Mul(b NDArray) NDArray {
 	// TODO: assert size equal
-	c := Zeros(a.shape)
+	c := Zeros(a.shape...)
 	copy(c.data, a.data)
 	for i := range c.data {
 		c.data[i] *= b.data[i]
@@ -149,7 +168,7 @@ func (a NDArray) Mul(b NDArray) NDArray {
 
 func (a NDArray) Div(b NDArray) NDArray {
 	// TODO: assert size equal
-	c := Zeros(a.shape)
+	c := Zeros(a.shape...)
 	copy(c.data, a.data)
 	for i := range c.data {
 		c.data[i] /= b.data[i]
@@ -168,7 +187,7 @@ func (a NDArray) Concat(b NDArray, axis int) NDArray {
 		}
 	}
 
-	c := Zeros(shape)
+	c := Zeros(shape...)
 	for i := range c.data {
 		index := c.index(i)
 		if index[axis] >= a.shape[axis] {
@@ -179,4 +198,16 @@ func (a NDArray) Concat(b NDArray, axis int) NDArray {
 		}
 	}
 	return c
+}
+
+func (a NDArray) Sign() NDArray {
+	arr := Zeros(a.Shape()...)
+	for i, v := range a.data {
+		if v < 0 {
+			arr.data[i] = -1.
+		} else if v > 0 {
+			arr.data[i] = 1.
+		}
+	}
+	return arr
 }

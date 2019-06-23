@@ -2,26 +2,36 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/tsholmes/go-dl/calc"
 	"github.com/tsholmes/go-dl/tensor"
 )
 
 func main() {
-	i1 := tensor.Input([]int{1})
-	i2 := tensor.Input([]int{1})
+	rand.Seed(time.Now().UnixNano())
 
-	x := tensor.Mul(i1, i1)
-	y := tensor.Mul(i2, i2)
+	x := tensor.Input([]int{2})
+	y := tensor.Input([]int{2})
 
-	out := tensor.Concat(0, x, y, tensor.Add(x, y))
+	t := tensor.Sub(x, tensor.Mul(y, tensor.Constant(calc.Constant(0.5, 2))))
 
-	eval := tensor.MakeEvaluation(out)
+	out := tensor.Mul(t, t)
 
-	val := eval.Evaluate(
-		tensor.Provide(i1, calc.Ones([]int{1}).MulConstant(3)),
-		tensor.Provide(i2, calc.Ones([]int{1}).MulConstant(4)),
-	)
+	curX := calc.RandomUniform(-10.0, 10.0, 2)
+	curY := calc.RandomUniform(-10.0, 10.0, 2)
 
-	fmt.Println(val[0].String())
+	gradient := tensor.Gradients(out)[x.ID()]
+
+	eval := tensor.MakeEvaluation(gradient)
+
+	for i := 0; i < 100; i++ {
+		val := eval.Evaluate(tensor.Provide(x, curX), tensor.Provide(y, curY))
+		grad := val[0]
+
+		curX = curX.Add(grad.MulConstant(-0.05))
+
+		fmt.Println(curX, curY, grad)
+	}
 }

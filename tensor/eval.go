@@ -7,7 +7,7 @@ import (
 )
 
 func MakeEvaluation(outputs ...Tensor) Evaluation {
-	evaluations := collect(outputs)
+	evaluations := collectForward(outputs)
 	return Evaluation{
 		outputs:     outputs,
 		evaluations: evaluations,
@@ -66,22 +66,21 @@ func (e *evaluationVisitor) VisitInput(t *InputTensor) {
 	e.value(t)
 }
 
+func (e *evaluationVisitor) VisitConstant(t *ConstantTensor) {
+	// Just assert that it was passed
+	e.values[t.ID()] = t.value
+}
+
 func (e *evaluationVisitor) VisitAdd(t *AddTensor) {
-	v := calc.Zeros(t.Shape())
+	v := calc.Zeros(t.Shape()...)
 	for _, a := range t.as {
 		v = v.Add(e.value(a))
 	}
 	e.values[t.ID()] = v
 }
 
-func (e *evaluationVisitor) VisitMulConstant(t *MulConstantTensor) {
-	v := e.value(t.tensor)
-	v = v.MulConstant(t.mul)
-	e.values[t.ID()] = v
-}
-
 func (e *evaluationVisitor) VisitMul(t *MulTensor) {
-	v := calc.Ones(t.Shape())
+	v := calc.Ones(t.Shape()...)
 	for _, a := range t.as {
 		v = v.Mul(e.value(a))
 	}
@@ -93,6 +92,17 @@ func (e *evaluationVisitor) VisitDiv(t *DivTensor) {
 	b := e.value(t.b)
 	v := a.Div(b)
 	e.values[t.ID()] = v
+}
+
+func (e *evaluationVisitor) VisitAbs(t *AbsTensor) {
+	v := e.value(t.t)
+	v = v.Mul(v.Sign())
+	e.values[t.ID()] = v
+}
+
+func (e *evaluationVisitor) VisitSign(t *SignTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Sign()
 }
 
 func (e *evaluationVisitor) VisitConcat(t *ConcatTensor) {

@@ -1,5 +1,7 @@
 package tensor
 
+import "github.com/tsholmes/go-dl/calc"
+
 type Tensor interface {
 	ID() int64
 	Shape() []int
@@ -10,10 +12,12 @@ type Tensor interface {
 
 type TensorVisitor interface {
 	VisitInput(t *InputTensor)
+	VisitConstant(t *ConstantTensor)
 	VisitAdd(t *AddTensor)
-	VisitMulConstant(t *MulConstantTensor)
 	VisitMul(t *MulTensor)
 	VisitDiv(t *DivTensor)
+	VisitAbs(t *AbsTensor)
+	VisitSign(t *SignTensor)
 	VisitConcat(t *ConcatTensor)
 }
 
@@ -62,6 +66,20 @@ func Input(shape []int) Tensor {
 	}
 }
 
+type ConstantTensor struct {
+	baseTensor
+	value calc.NDArray
+}
+
+func (t *ConstantTensor) Visit(v TensorVisitor) { v.VisitConstant(t) }
+
+func Constant(value calc.NDArray) Tensor {
+	return &ConstantTensor{
+		baseTensor: base(value.Shape()),
+		value:      value,
+	}
+}
+
 type AddTensor struct {
 	baseTensor
 	as []Tensor
@@ -76,24 +94,8 @@ func Add(as ...Tensor) Tensor {
 	}
 }
 
-type MulConstantTensor struct {
-	baseTensor
-	tensor Tensor
-	mul    float64
-}
-
-func (t *MulConstantTensor) Visit(v TensorVisitor) { v.VisitMulConstant(t) }
-
-func MulConstant(tensor Tensor, mul float64) Tensor {
-	return &MulConstantTensor{
-		baseTensor: base(tensor.Shape(), tensor),
-		tensor:     tensor,
-		mul:        mul,
-	}
-}
-
 func Sub(a Tensor, b Tensor) Tensor {
-	return Add(a, MulConstant(b, -1))
+	return Add(a, Mul(b, Constant(calc.Constant(-1, b.Shape()...))))
 }
 
 type MulTensor struct {
@@ -123,6 +125,34 @@ func Div(a Tensor, b Tensor) Tensor {
 		baseTensor: base(elementWise(a, b), a, b),
 		a:          a,
 		b:          b,
+	}
+}
+
+type AbsTensor struct {
+	baseTensor
+	t Tensor
+}
+
+func (t *AbsTensor) Visit(v TensorVisitor) { v.VisitAbs(t) }
+
+func Abs(t Tensor) Tensor {
+	return &AbsTensor{
+		baseTensor: base(t.Shape(), t),
+		t:          t,
+	}
+}
+
+type SignTensor struct {
+	baseTensor
+	t Tensor
+}
+
+func (t *SignTensor) Visit(v TensorVisitor) { v.VisitSign(t) }
+
+func Sign(t Tensor) Tensor {
+	return &SignTensor{
+		baseTensor: base(t.Shape(), t),
+		t:          t,
 	}
 }
 
