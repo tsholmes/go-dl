@@ -83,6 +83,22 @@ func (a NDArray) dataIndex(index []int) int {
 	return dataIndex
 }
 
+func (a NDArray) dataIndexBroadcast(index []int) int {
+	dataIndex := 0
+	innerSize := 1
+
+	for i := len(index) - 1; i >= 0; i-- {
+		idx := index[i]
+		if a.shape[i] == 1 {
+			idx = 0
+		}
+		dataIndex += innerSize * idx
+		innerSize *= a.shape[i]
+	}
+
+	return dataIndex
+}
+
 func (a NDArray) index(dataIndex int) []int {
 	index := make([]int, len(a.shape))
 	for i := len(a.shape) - 1; i >= 0; i-- {
@@ -138,11 +154,14 @@ func (a NDArray) String() string {
 }
 
 func (a NDArray) Add(b NDArray) NDArray {
-	// TODO: assert size equal
-	c := Zeros(a.shape...)
-	copy(c.data, a.data)
+	// TODO: assert size valid
+	newShape := BroadcastShape(a.shape, b.shape)
+
+	c := Zeros(newShape...)
 	for i := range c.data {
-		c.data[i] += b.data[i]
+		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
+		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
+		c.data[i] = aVal + bVal
 	}
 	return c
 }
@@ -157,21 +176,27 @@ func (a NDArray) MulConstant(b float64) NDArray {
 }
 
 func (a NDArray) Mul(b NDArray) NDArray {
-	// TODO: assert size equal
-	c := Zeros(a.shape...)
-	copy(c.data, a.data)
+	// TODO: assert size valid
+	newShape := BroadcastShape(a.shape, b.shape)
+
+	c := Zeros(newShape...)
 	for i := range c.data {
-		c.data[i] *= b.data[i]
+		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
+		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
+		c.data[i] = aVal * bVal
 	}
 	return c
 }
 
 func (a NDArray) Div(b NDArray) NDArray {
-	// TODO: assert size equal
-	c := Zeros(a.shape...)
-	copy(c.data, a.data)
+	// TODO: assert size valid
+	newShape := BroadcastShape(a.shape, b.shape)
+
+	c := Zeros(newShape...)
 	for i := range c.data {
-		c.data[i] /= b.data[i]
+		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
+		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
+		c.data[i] = aVal / bVal
 	}
 	return c
 }

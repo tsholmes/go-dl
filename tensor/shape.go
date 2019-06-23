@@ -1,8 +1,14 @@
 package tensor
 
+import "github.com/tsholmes/go-dl/calc"
+
 func elementWise(as ...Tensor) []int {
 	// TODO: validate equal
-	return as[0].Shape()
+	newShape := as[0].Shape()
+	for _, a := range as[1:] {
+		newShape = calc.BroadcastShape(newShape, a.Shape())
+	}
+	return newShape
 }
 
 func concat(axis int, as ...Tensor) []int {

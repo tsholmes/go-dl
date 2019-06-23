@@ -59,7 +59,7 @@ type InputTensor struct {
 
 func (t *InputTensor) Visit(v TensorVisitor) { v.VisitInput(t) }
 
-func Input(shape []int) Tensor {
+func Input(shape ...int) Tensor {
 	return &InputTensor{
 		baseTensor: base(shape),
 		shape:      shape,
