@@ -134,8 +134,13 @@ func (a NDArray) dataIndexBroadcast(index []int) int {
 	return dataIndex
 }
 
-func (a NDArray) index(dataIndex int) []int {
-	index := make([]int, len(a.shape))
+func (a NDArray) index(dataIndex int, reuse ...[]int) []int {
+	var index []int
+	if len(reuse) > 0 && cap(reuse[0]) >= len(a.shape) {
+		index = reuse[0][:len(a.shape)]
+	} else {
+		index = make([]int, len(a.shape))
+	}
 	for i := len(a.shape) - 1; i >= 0; i-- {
 		index[i] = dataIndex % a.shape[i]
 		dataIndex /= a.shape[i]
@@ -188,9 +193,25 @@ func (a NDArray) String() string {
 	return string(out)
 }
 
-func (a NDArray) ForEach(f func(index []int, value float64)) {
+func (a NDArray) ForEach(f func(dataIndex int, index []int, value float64)) {
+	index := make([]int, len(a.shape))
 	for i := range a.data {
-		f(a.index(i), a.data[i])
+		f(i, index, a.data[i])
+		a.nextIndex(index)
+	}
+}
+
+func (a NDArray) nextIndex(index []int) {
+	index[len(index)-1]++
+	for i := len(index) - 1; i >= 0; i-- {
+		if index[i] == a.shape[i] {
+			index[i] = 0
+			if i > 0 {
+				index[i-1]++
+			}
+		} else {
+			break
+		}
 	}
 }
 
@@ -199,11 +220,11 @@ func (a NDArray) Add(b NDArray) NDArray {
 	newShape := BroadcastShape(a.shape, b.shape)
 
 	c := Zeros(newShape...)
-	for i := range c.data {
-		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
-		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
-		c.data[i] = aVal + bVal
-	}
+	c.ForEach(func(dataIndex int, index []int, value float64) {
+		aVal := a.data[a.dataIndexBroadcast(index)]
+		bVal := b.data[b.dataIndexBroadcast(index)]
+		c.data[dataIndex] = aVal + bVal
+	})
 	return c
 }
 
@@ -221,11 +242,11 @@ func (a NDArray) Mul(b NDArray) NDArray {
 	newShape := BroadcastShape(a.shape, b.shape)
 
 	c := Zeros(newShape...)
-	for i := range c.data {
-		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
-		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
-		c.data[i] = aVal * bVal
-	}
+	c.ForEach(func(dataIndex int, index []int, value float64) {
+		aVal := a.data[a.dataIndexBroadcast(index)]
+		bVal := b.data[b.dataIndexBroadcast(index)]
+		c.data[dataIndex] = aVal * bVal
+	})
 	return c
 }
 
@@ -234,11 +255,11 @@ func (a NDArray) Div(b NDArray) NDArray {
 	newShape := BroadcastShape(a.shape, b.shape)
 
 	c := Zeros(newShape...)
-	for i := range c.data {
-		aVal := a.data[a.dataIndexBroadcast(c.index(i))]
-		bVal := b.data[b.dataIndexBroadcast(c.index(i))]
-		c.data[i] = aVal / bVal
-	}
+	c.ForEach(func(dataIndex int, index []int, value float64) {
+		aVal := a.data[a.dataIndexBroadcast(index)]
+		bVal := b.data[b.dataIndexBroadcast(index)]
+		c.data[dataIndex] = aVal / bVal
+	})
 	return c
 }
 
@@ -254,15 +275,16 @@ func (a NDArray) Concat(b NDArray, axis int) NDArray {
 	}
 
 	c := Zeros(shape...)
-	for i := range c.data {
-		index := c.index(i)
+	c.ForEach(func(dataIndex int, index []int, value float64) {
 		if index[axis] >= a.shape[axis] {
 			index[axis] -= a.shape[axis]
-			c.data[i] = b.Get(index)
+			c.data[dataIndex] = b.Get(index)
+			// reset so ForEach still works
+			index[axis] += a.shape[axis]
 		} else {
-			c.data[i] = a.Get(index)
+			c.data[dataIndex] = a.Get(index)
 		}
-	}
+	})
 	return c
 }
 
@@ -288,9 +310,9 @@ func (a NDArray) PowConstant(e float64) NDArray {
 
 func (a NDArray) Sum(axes ...int) NDArray {
 	arr := Zeros(AggrShape(a.shape, axes)...)
-	for i, v := range a.data {
-		arr.data[arr.dataIndexBroadcast(a.index(i))] += v
-	}
+	a.ForEach(func(dataIndex int, index []int, value float64) {
+		arr.data[arr.dataIndexBroadcast(index)] += value
+	})
 
 	return arr
 }
@@ -298,13 +320,13 @@ func (a NDArray) Sum(axes ...int) NDArray {
 func (a NDArray) Greater(b NDArray) NDArray {
 	arr := Zeros(BroadcastShape(a.shape, b.shape)...)
 
-	for i := range arr.data {
-		av := a.data[a.dataIndexBroadcast(arr.index(i))]
-		bv := b.data[b.dataIndexBroadcast(arr.index(i))]
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		av := a.data[a.dataIndexBroadcast(index)]
+		bv := b.data[b.dataIndexBroadcast(index)]
 		if bv > av {
-			arr.data[i] = 1.
+			arr.data[dataIndex] = 1.
 		}
-	}
+	})
 
 	return arr
 }
@@ -312,16 +334,33 @@ func (a NDArray) Greater(b NDArray) NDArray {
 func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 	arr := Zeros(MatMulShape(a.shape, b.shape, a1, a2)...)
 
-	for i := range arr.data {
-		index := arr.index(i)
-		aIndex := append([]int{}, index...)
-		bIndex := append([]int{}, index...)
+	aOff := 1
+	bOff := 1
+	for i := a2 + 1; i < len(a.shape); i++ {
+		aOff *= a.shape[i]
+	}
+	for i := a1 + 1; i < len(b.shape); i++ {
+		bOff *= b.shape[i]
+	}
+
+	var aIndex []int
+	var bIndex []int
+
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		aIndex = append(aIndex[:0], index...)
+		bIndex = append(bIndex[:0], index...)
+
+		aIndex[a2], bIndex[a1] = 0, 0
+
+		aDIndex := a.dataIndex(aIndex)
+		bDIndex := b.dataIndex(bIndex)
 
 		for j := 0; j < a.shape[a2]; j++ {
-			aIndex[a2], bIndex[a1] = j, j
-			arr.data[i] += a.Get(aIndex) * b.Get(bIndex)
+			arr.data[dataIndex] += a.data[aDIndex] * b.data[bDIndex]
+			aDIndex += aOff
+			bDIndex += bOff
 		}
-	}
+	})
 
 	return arr
 }
@@ -329,11 +368,12 @@ func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 func (a NDArray) Transpose(a1 int, a2 int) NDArray {
 	arr := Zeros(TransposeShape(a.shape, a1, a2)...)
 
-	for i := range arr.data {
-		index := arr.index(i)
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
 		index[a1], index[a2] = index[a2], index[a1]
-		arr.data[i] = a.Get(index)
-	}
+		arr.data[dataIndex] = a.Get(index)
+		// swap back so ForEach works
+		index[a1], index[a2] = index[a2], index[a1]
+	})
 
 	return arr
 }
