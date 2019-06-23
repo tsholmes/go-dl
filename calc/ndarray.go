@@ -56,7 +56,7 @@ type NDArray struct {
 	data  []float64
 }
 
-func (a *NDArray) dataIndex(index []int) int {
+func (a NDArray) dataIndex(index []int) int {
 	dataIndex := 0
 	innerSize := 1
 
@@ -68,7 +68,7 @@ func (a *NDArray) dataIndex(index []int) int {
 	return dataIndex
 }
 
-func (a *NDArray) index(dataIndex int) []int {
+func (a NDArray) index(dataIndex int) []int {
 	index := make([]int, len(a.shape))
 	for i := len(a.shape) - 1; i >= 0; i-- {
 		index[i] = dataIndex % a.shape[i]
@@ -77,15 +77,15 @@ func (a *NDArray) index(dataIndex int) []int {
 	return index
 }
 
-func (a *NDArray) Get(index []int) float64 {
+func (a NDArray) Get(index []int) float64 {
 	return a.data[a.dataIndex(index)]
 }
 
-func (a *NDArray) Set(index []int, value float64) {
+func (a NDArray) Set(index []int, value float64) {
 	a.data[a.dataIndex(index)] = value
 }
 
-func (a *NDArray) String() string {
+func (a NDArray) String() string {
 	mods := make([]int, len(a.shape))
 	mods[len(a.shape)-1] = a.shape[len(a.shape)-1]
 	for i := len(a.shape) - 2; i >= 0; i-- {
@@ -99,14 +99,14 @@ func (a *NDArray) String() string {
 		for _, m := range mods {
 			if i%m == 0 {
 				if !opened && i > 0 {
-					out = append(out, ',')
+					out = append(out, ' ')
 				}
 				opened = true
 				out = append(out, '[')
 			}
 		}
 		if !opened {
-			out = append(out, ',')
+			out = append(out, ' ')
 		}
 		out = strconv.AppendFloat(out, a.data[i], 'g', -1, 64)
 		for _, m := range mods {
@@ -118,7 +118,7 @@ func (a *NDArray) String() string {
 	return string(out)
 }
 
-func (a *NDArray) Add(b NDArray) NDArray {
+func (a NDArray) Add(b NDArray) NDArray {
 	// TODO: assert size equal
 	c := Zeros(a.shape)
 	copy(c.data, a.data)
@@ -128,17 +128,16 @@ func (a *NDArray) Add(b NDArray) NDArray {
 	return c
 }
 
-func (a *NDArray) Sub(b NDArray) NDArray {
-	// TODO: assert size equal
+func (a NDArray) MulConstant(b float64) NDArray {
 	c := Zeros(a.shape)
 	copy(c.data, a.data)
 	for i := range c.data {
-		c.data[i] -= b.data[i]
+		c.data[i] *= b
 	}
 	return c
 }
 
-func (a *NDArray) Mul(b NDArray) NDArray {
+func (a NDArray) Mul(b NDArray) NDArray {
 	// TODO: assert size equal
 	c := Zeros(a.shape)
 	copy(c.data, a.data)
@@ -148,7 +147,7 @@ func (a *NDArray) Mul(b NDArray) NDArray {
 	return c
 }
 
-func (a *NDArray) Div(b NDArray) NDArray {
+func (a NDArray) Div(b NDArray) NDArray {
 	// TODO: assert size equal
 	c := Zeros(a.shape)
 	copy(c.data, a.data)
@@ -158,7 +157,7 @@ func (a *NDArray) Div(b NDArray) NDArray {
 	return c
 }
 
-func (a *NDArray) Concat(b NDArray, axis int) NDArray {
+func (a NDArray) Concat(b NDArray, axis int) NDArray {
 	// TODO: assert all sizes other than axis are equal
 	shape := make([]int, len(a.shape))
 	for i := range shape {
