@@ -18,6 +18,8 @@ type TensorVisitor interface {
 	VisitSign(t *SignTensor)
 	VisitPowConstant(t *PowConstantTensor)
 	VisitMatMul(t *MatMulTensor)
+	VisitLog(t *LogTensor)
+	VisitExp(t *ExpTensor)
 	VisitConcat(t *ConcatTensor)
 	VisitTranspose(t *TransposeTensor)
 	VisitSum(t *SumTensor)

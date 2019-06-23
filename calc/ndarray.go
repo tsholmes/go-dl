@@ -337,3 +337,23 @@ func (a NDArray) Transpose(a1 int, a2 int) NDArray {
 
 	return arr
 }
+
+func (a NDArray) Log() NDArray {
+	arr := Zeros(a.shape...)
+
+	for i, v := range a.data {
+		arr.data[i] = math.Log(v)
+	}
+
+	return arr
+}
+
+func (a NDArray) Exp() NDArray {
+	arr := Zeros(a.shape...)
+
+	for i, v := range a.data {
+		arr.data[i] = math.Exp(v)
+	}
+
+	return arr
+}

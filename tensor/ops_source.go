@@ -48,3 +48,7 @@ func (g *gradientVisitor) VisitConstant(t *ConstantTensor) {
 	// there's really no point in even bothering with this
 	g.collect(t)
 }
+
+func Ones(shape ...int) Tensor {
+	return Constant(calc.Ones(shape...))
+}

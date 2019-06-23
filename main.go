@@ -25,14 +25,14 @@ func weight(shape ...int) (tensor.Tensor, calc.NDArray) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	batchSize := 1000
-	l1Size := 16
-	l2Size := 32
+	batchSize := 100
+	l1Size := 100
+	l2Size := 200
 
-	x := tensor.Input(batchSize, 1)
+	x := tensor.Input(batchSize, 2)
 	y := tensor.Input(batchSize, 1)
 
-	w1, w1v := weight(1, l1Size)
+	w1, w1v := weight(2, l1Size)
 	b1, b1v := weight(1, l1Size)
 	w2, w2v := weight(l1Size, l2Size)
 	b2, b2v := weight(1, l2Size)
@@ -50,8 +50,9 @@ func main() {
 	t = tensor.MatMul(t, w3, 0, 1)
 	t = tensor.Add(t, b3)
 
-	loss := tensor.PowConstant(tensor.Sub(t, y), 2.0)
-	// loss := tensor.Abs(tensor.Sub(t, y))
+	pred := tensor.Sigmoid(t)
+	loss := tensor.BinaryCrossEntropy(y, pred)
+
 	gradients := tensor.Gradients(loss)
 
 	evalTrain := tensor.MakeEvaluation(
@@ -65,16 +66,18 @@ func main() {
 	)
 
 	Yfor := func(x calc.NDArray) calc.NDArray {
-		return x.Add(x.Greater(calc.Zeros(x.Shape()...)).Mul(x)).Add(calc.Constant(10.0, x.Shape()...))
+		// return x.Add(x.Greater(calc.Zeros(x.Shape()...)).Mul(x)).Add(calc.Constant(10.0, x.Shape()...))
+		// return x.PowConstant(2.0)
+		return x.PowConstant(2.0).Sum(1).PowConstant(0.5).Greater(calc.Constant(0.5, 1, 1))
 	}
 
 	evalTest := tensor.MakeEvaluation(loss)
 
-	XTest := calc.RandomUniform(0.0, 100.0, batchSize, 1)
+	XTest := calc.RandomUniform(0.0, 1.0, batchSize, 2)
 	YTest := Yfor(XTest)
 
 	for i := 0; i < 10000; i++ {
-		X := calc.RandomUniform(0.0, 100.0, batchSize, 1)
+		X := calc.RandomUniform(0.0, 1.0, batchSize, 2)
 		Y := Yfor(X)
 
 		outs := evalTrain.Evaluate(
@@ -88,21 +91,10 @@ func main() {
 			tensor.Provide(b3, b3v),
 		)
 
-		outTest := evalTest.Evaluate(
-			tensor.Provide(x, XTest),
-			tensor.Provide(y, YTest),
-			tensor.Provide(w1, w1v),
-			tensor.Provide(b1, b1v),
-			tensor.Provide(w2, w2v),
-			tensor.Provide(b2, b2v),
-			tensor.Provide(w3, w3v),
-			tensor.Provide(b3, b3v),
-		)
-
 		loss := outs[0]
-		testLoss := outTest[0]
 
-		lr := -math.Pow(10.0, -7-float64(i)/50.0)
+		// lr := -math.Pow(10.0, -2-math.Sqrt(float64(i)/500.0))
+		lr := -1e-3
 		w1v = w1v.Add(outs[1].MulConstant(lr))
 		b1v = b1v.Add(outs[2].MulConstant(lr))
 		w2v = w2v.Add(outs[3].MulConstant(lr))
@@ -111,6 +103,19 @@ func main() {
 		b3v = b3v.Add(outs[6].MulConstant(lr))
 
 		if (i+1)%10 == 0 {
+
+			outTest := evalTest.Evaluate(
+				tensor.Provide(x, XTest),
+				tensor.Provide(y, YTest),
+				tensor.Provide(w1, w1v),
+				tensor.Provide(b1, b1v),
+				tensor.Provide(w2, w2v),
+				tensor.Provide(b2, b2v),
+				tensor.Provide(w3, w3v),
+				tensor.Provide(b3, b3v),
+			)
+			testLoss := outTest[0]
+
 			fmt.Println(
 				loss.Sum(0, 1).MulConstant(1.0/float64(X.Shape()[0])),
 				testLoss.Sum(0, 1).MulConstant(1.0/float64(X.Shape()[0])),

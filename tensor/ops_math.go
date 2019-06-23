@@ -35,7 +35,7 @@ func (g *gradientVisitor) VisitAdd(t *AddTensor) {
 }
 
 func Sub(a Tensor, b Tensor) Tensor {
-	return Add(a, Mul(b, Constant(calc.Constant(-1, b.Shape()...))))
+	return Add(a, Negate(b))
 }
 
 func Mul(as ...Tensor) Tensor {
@@ -69,6 +69,10 @@ func (g *gradientVisitor) VisitMul(t *MulTensor) {
 		as[i] = delta
 		g.push(a, Mul(as...))
 	}
+}
+
+func Negate(t Tensor) Tensor {
+	return Mul(t, Constant(calc.Constant(-1., t.Shape()...)))
 }
 
 func Div(a Tensor, b Tensor) Tensor {
@@ -172,4 +176,60 @@ func (g *gradientVisitor) VisitMatMul(t *MatMulTensor) {
 
 	g.push(t.a, MatMul(delta, Transpose(t.b, t.a1, t.a2), t.a1, t.a2))
 	g.push(t.b, MatMul(Transpose(t.a, t.a1, t.a2), delta, t.a1, t.a2))
+}
+
+func Log(t Tensor) Tensor {
+	return &LogTensor{
+		baseTensor: base(t.Shape(), t),
+		t:          t,
+	}
+}
+
+type LogTensor struct {
+	baseTensor
+	t Tensor
+}
+
+func (t *LogTensor) Visit(v TensorVisitor) { v.VisitLog(t) }
+
+func (e *evaluationVisitor) VisitLog(t *LogTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Log()
+}
+
+func (g *gradientVisitor) VisitLog(t *LogTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, Mul(
+		delta,
+		PowConstant(t.t, -1),
+	))
+}
+
+func Exp(t Tensor) Tensor {
+	return &ExpTensor{
+		baseTensor: base(t.Shape(), t),
+		t:          t,
+	}
+}
+
+type ExpTensor struct {
+	baseTensor
+	t Tensor
+}
+
+func (t *ExpTensor) Visit(v TensorVisitor) { v.VisitExp(t) }
+
+func (e *evaluationVisitor) VisitExp(t *ExpTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Exp()
+}
+
+func (g *gradientVisitor) VisitExp(t *ExpTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, Mul(
+		delta,
+		t,
+	))
 }
