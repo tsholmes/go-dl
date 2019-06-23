@@ -195,9 +195,11 @@ func (a NDArray) String() string {
 
 func (a NDArray) ForEach(f func(dataIndex int, index []int, value float64)) {
 	index := make([]int, len(a.shape))
+	passedIndex := make([]int, len(a.shape))
 	for i := range a.data {
-		f(i, index, a.data[i])
+		f(i, passedIndex, a.data[i])
 		a.nextIndex(index)
+		copy(passedIndex, index)
 	}
 }
 
@@ -279,8 +281,6 @@ func (a NDArray) Concat(b NDArray, axis int) NDArray {
 		if index[axis] >= a.shape[axis] {
 			index[axis] -= a.shape[axis]
 			c.data[dataIndex] = b.Get(index)
-			// reset so ForEach still works
-			index[axis] += a.shape[axis]
 		} else {
 			c.data[dataIndex] = a.Get(index)
 		}
@@ -371,8 +371,6 @@ func (a NDArray) Transpose(a1 int, a2 int) NDArray {
 	arr.ForEach(func(dataIndex int, index []int, value float64) {
 		index[a1], index[a2] = index[a2], index[a1]
 		arr.data[dataIndex] = a.Get(index)
-		// swap back so ForEach works
-		index[a1], index[a2] = index[a2], index[a1]
 	})
 
 	return arr
