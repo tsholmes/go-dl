@@ -34,7 +34,7 @@ func main() {
 	meanErr := tensor.Abs(tensor.Sub(mean, targetMean))
 	stdErr := tensor.Abs(tensor.Sub(stddev, targetStddev))
 
-	curX := calc.RandomUniform(-1.0, 1.0, 1000)
+	curX := calc.RandomUniform(-3.0, 3.0, 1000)
 	curMeanTgt := calc.Zeros(1)
 	curStddevTgt := calc.Ones(1)
 

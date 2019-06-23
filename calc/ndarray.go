@@ -263,3 +263,17 @@ func (a NDArray) Sum(axes ...int) NDArray {
 
 	return arr
 }
+
+func (a NDArray) Greater(b NDArray) NDArray {
+	arr := Zeros(BroadcastShape(a.shape, b.shape)...)
+
+	for i := range arr.data {
+		av := a.data[a.dataIndexBroadcast(arr.index(i))]
+		bv := b.data[b.dataIndexBroadcast(arr.index(i))]
+		if bv > av {
+			arr.data[i] = 1.
+		}
+	}
+
+	return arr
+}
