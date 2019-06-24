@@ -336,6 +336,19 @@ func (a NDArray) Sum(axes ...int) NDArray {
 	return arr
 }
 
+func (a NDArray) Mean(axes ...int) NDArray {
+	arr := Zeros(AggrShape(a.shape, axes)...)
+	div := 1
+	for _, ax := range axes {
+		div *= a.shape[ax]
+	}
+	a.ForEach(func(dataIndex int, index []int, value float64) {
+		arr.data[arr.dataIndexBroadcast(index)] += value / float64(div)
+	})
+
+	return arr
+}
+
 func (a NDArray) Greater(b NDArray) NDArray {
 	arr := Zeros(BroadcastShape(a.shape, b.shape)...)
 
