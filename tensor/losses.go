@@ -21,3 +21,15 @@ func CategoricalCrossEntropy(yTrue Tensor, yPred Tensor) Tensor {
 		len(yTrue.Shape())-1,
 	))
 }
+
+func CategoricalAccuracy(yTrue Tensor, yPred Tensor) Tensor {
+	ax := len(yPred.Shape()) - 1
+	yPred = Equal(yPred, Max(yPred, ax))
+	return Mean(
+		Flatten(
+			Sum(Mul(yTrue, Equal(yPred, yTrue)), ax),
+			0,
+		),
+		0,
+	)
+}

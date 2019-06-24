@@ -22,6 +22,8 @@ type Model struct {
 	yPred tensor.Tensor
 	loss  tensor.Tensor
 
+	metrics []tensor.Tensor
+
 	weightGradients []tensor.Tensor
 
 	trainEval   tensor.Evaluation
@@ -54,19 +56,27 @@ func (m *Model) L2(l2 float64) {
 	m.l2 = l2
 }
 
-func (m *Model) Compile(input tensor.Tensor, yTrue tensor.Tensor, yPred tensor.Tensor, loss tensor.Tensor) {
+func (m *Model) Compile(input tensor.Tensor, yTrue tensor.Tensor, yPred tensor.Tensor, loss tensor.Tensor, metrics ...tensor.Tensor) {
 	m.input = input
 	m.yTrue = yTrue
 	m.yPred = yPred
 	m.loss = loss
+	m.metrics = metrics
+	for i, mt := range m.metrics {
+		m.metrics[i] = tensor.Mean(tensor.Flatten(mt, 0), 0)
+	}
 
 	gradients := tensor.Gradients(loss)
 	for _, w := range m.weights {
 		m.weightGradients = append(m.weightGradients, gradients[w.ID()])
 	}
 
-	m.trainEval = tensor.MakeEvaluation(append([]tensor.Tensor{loss}, m.weightGradients...)...)
-	m.testEval = tensor.MakeEvaluation(loss)
+	trainTs := []tensor.Tensor{loss}
+	trainTs = append(trainTs, metrics...)
+	trainTs = append(trainTs, m.weightGradients...)
+
+	m.trainEval = tensor.MakeEvaluation(trainTs...)
+	m.testEval = tensor.MakeEvaluation(append([]tensor.Tensor{loss}, metrics...)...)
 	m.predictEval = tensor.MakeEvaluation(yPred)
 }
 
@@ -94,7 +104,7 @@ func (m *Model) updateWeights(grads []calc.NDArray, lr float64) {
 	}
 }
 
-func (m *Model) Train(X calc.NDArray, Y calc.NDArray, lr float64) float64 {
+func (m *Model) Train(X calc.NDArray, Y calc.NDArray, lr float64) (float64, []float64) {
 	provisions := append([]tensor.ProvidedInput{
 		tensor.Provide(m.input, X),
 		tensor.Provide(m.yTrue, Y),
@@ -103,30 +113,46 @@ func (m *Model) Train(X calc.NDArray, Y calc.NDArray, lr float64) float64 {
 	vals := m.trainEval.Evaluate(provisions...)
 
 	loss := vals[0]
+	metrics := vals[1 : 1+len(m.metrics)]
 
-	m.updateWeights(vals[1:], lr)
+	m.updateWeights(vals[1+len(m.metrics):], lr)
 
 	allAxes := make([]int, len(loss.Shape()))
 	for i := range allAxes {
 		allAxes[i] = i
 	}
 
-	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape())))
+	mvals := make([]float64, len(metrics))
+	for i := range metrics {
+		// we flatten all these to 1
+		mvals[i] = metrics[i].Get([]int{0})
+	}
+
+	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape()))), mvals
 }
 
-func (m *Model) Test(X calc.NDArray, Y calc.NDArray) float64 {
+func (m *Model) Test(X calc.NDArray, Y calc.NDArray) (float64, []float64) {
 	provisions := append([]tensor.ProvidedInput{
 		tensor.Provide(m.input, X),
 		tensor.Provide(m.yTrue, Y),
 	}, m.WeightProvisions()...)
-	loss := m.testEval.Evaluate(provisions...)[0]
+	eval := m.testEval.Evaluate(provisions...)
+
+	loss := eval[0]
+	metrics := eval[1:]
 
 	allAxes := make([]int, len(loss.Shape()))
 	for i := range allAxes {
 		allAxes[i] = i
 	}
 
-	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape())))
+	mvals := make([]float64, len(metrics))
+	for i := range metrics {
+		// we flatten all these to 1
+		mvals[i] = metrics[i].Get([]int{0})
+	}
+
+	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape()))), mvals
 }
 
 func (m *Model) Predict(X calc.NDArray) calc.NDArray {
