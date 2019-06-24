@@ -1,7 +1,7 @@
 package tensor
 
 // outputs all dependent tensors in evaluation order
-func collectForward(outputs []Tensor) []Tensor {
+func CollectForward(outputs []Tensor) []Tensor {
 	graph := make(map[int64]Tensor)
 	forward := make(map[int64][]int64)
 
@@ -62,7 +62,7 @@ func collectForward(outputs []Tensor) []Tensor {
 }
 
 // outputs all dependent tensors in reverse order
-func collectBackward(outputs []Tensor) []Tensor {
+func CollectBackward(outputs []Tensor) []Tensor {
 	graph := make(map[int64]Tensor)
 	forward := make(map[int64][]int64)
 

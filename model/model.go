@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/tsholmes/go-dl/calc"
@@ -29,14 +30,12 @@ type Model struct {
 
 	// configurable
 	gradientClip float64
+	l2           float64
 }
 
 func (m *Model) AddWeight(shape ...int) tensor.Tensor {
-	sz := 1
-	for _, s := range shape {
-		sz *= s
-	}
-	init := math.Sqrt(1.0 / float64(sz))
+	// glorot uniform
+	init := math.Sqrt(2.0 / float64(shape[len(shape)-2]+shape[len(shape)-1]))
 
 	t := tensor.Input(shape...)
 	v := calc.RandomUniform(-init, init, shape...)
@@ -49,6 +48,10 @@ func (m *Model) AddWeight(shape ...int) tensor.Tensor {
 
 func (m *Model) ClipGradients(clip float64) {
 	m.gradientClip = clip
+}
+
+func (m *Model) L2(l2 float64) {
+	m.l2 = l2
 }
 
 func (m *Model) Compile(input tensor.Tensor, yTrue tensor.Tensor, yPred tensor.Tensor, loss tensor.Tensor) {
@@ -67,7 +70,7 @@ func (m *Model) Compile(input tensor.Tensor, yTrue tensor.Tensor, yPred tensor.T
 	m.predictEval = tensor.MakeEvaluation(yPred)
 }
 
-func (m *Model) weightProvisions() []tensor.ProvidedInput {
+func (m *Model) WeightProvisions() []tensor.ProvidedInput {
 	res := make([]tensor.ProvidedInput, len(m.weights))
 	for i := range res {
 		res[i] = tensor.Provide(m.weights[i], m.weightVals[i])
@@ -78,19 +81,16 @@ func (m *Model) weightProvisions() []tensor.ProvidedInput {
 func (m *Model) updateWeights(grads []calc.NDArray, lr float64) {
 	for i, w := range m.weightVals {
 		g := grads[i]
-		var meanAxes []int
-		for j := range w.Shape() {
-			if w.Shape()[j] == 1 && g.Shape()[j] > 1 {
-				meanAxes = append(meanAxes, j)
-			}
-		}
-		if len(meanAxes) > 0 {
-			g = g.Mean(meanAxes...)
+		if !shapeEq(g.Shape(), w.Shape()) {
+			panic(fmt.Sprint(g.Shape(), w.Shape()))
 		}
 		if m.gradientClip > 0 {
 			g = g.Clip(-m.gradientClip, m.gradientClip)
 		}
 		m.weightVals[i] = w.Add(g.MulConstant(-lr))
+		if m.l2 > 0 {
+			m.weightVals[i] = m.weightVals[i].MulConstant(1.0 - m.l2)
+		}
 	}
 }
 
@@ -98,7 +98,7 @@ func (m *Model) Train(X calc.NDArray, Y calc.NDArray, lr float64) float64 {
 	provisions := append([]tensor.ProvidedInput{
 		tensor.Provide(m.input, X),
 		tensor.Provide(m.yTrue, Y),
-	}, m.weightProvisions()...)
+	}, m.WeightProvisions()...)
 
 	vals := m.trainEval.Evaluate(provisions...)
 
@@ -118,7 +118,7 @@ func (m *Model) Test(X calc.NDArray, Y calc.NDArray) float64 {
 	provisions := append([]tensor.ProvidedInput{
 		tensor.Provide(m.input, X),
 		tensor.Provide(m.yTrue, Y),
-	}, m.weightProvisions()...)
+	}, m.WeightProvisions()...)
 	loss := m.testEval.Evaluate(provisions...)[0]
 
 	allAxes := make([]int, len(loss.Shape()))
@@ -127,4 +127,40 @@ func (m *Model) Test(X calc.NDArray, Y calc.NDArray) float64 {
 	}
 
 	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape())))
+}
+
+func (m *Model) Predict(X calc.NDArray) calc.NDArray {
+	provisions := append([]tensor.ProvidedInput{
+		tensor.Provide(m.input, X),
+	}, m.WeightProvisions()...)
+	return m.predictEval.Evaluate(provisions...)[0]
+}
+
+func (m *Model) WeightMags() []float64 {
+	var res []float64
+	for _, w := range m.weightVals {
+		res = append(res, mag(w))
+	}
+	return res
+}
+
+func (m *Model) Weights() []calc.NDArray {
+	return m.weightVals
+}
+
+func mag(w calc.NDArray) float64 {
+	ax := make([]int, len(w.Shape()))
+	for i := range ax {
+		ax[i] = i
+	}
+	return w.PowConstant(2.0).Sum(ax...).PowConstant(0.5).Get(make([]int, len(w.Shape())))
+}
+
+func shapeEq(s1 []int, s2 []int) bool {
+	for i := range s1 {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+	return true
 }

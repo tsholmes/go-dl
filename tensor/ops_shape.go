@@ -93,7 +93,7 @@ func (t *UnsliceTensor) Visit(v TensorVisitor) { v.VisitUnslice(t) }
 
 func (e *evaluationVisitor) VisitUnslice(t *UnsliceTensor) {
 	v := e.value(t.t)
-	v2 := calc.Ones(t.Shape()...)
+	v2 := calc.Zeros(t.Shape()...)
 	v2.SetSlice(v, t.axis, t.offset)
 	e.values[t.ID()] = v2
 }

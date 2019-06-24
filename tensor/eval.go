@@ -7,7 +7,7 @@ import (
 )
 
 func MakeEvaluation(outputs ...Tensor) Evaluation {
-	evaluations := collectForward(outputs)
+	evaluations := CollectForward(outputs)
 	return Evaluation{
 		outputs:     outputs,
 		evaluations: evaluations,

@@ -394,7 +394,7 @@ func (a NDArray) Greater(b NDArray) NDArray {
 	arr.ForEach(func(dataIndex int, index []int, value float64) {
 		av := a.data[a.dataIndexBroadcast(index)]
 		bv := b.data[b.dataIndexBroadcast(index)]
-		if bv > av {
+		if av > bv {
 			arr.data[dataIndex] = 1.
 		}
 	})
@@ -429,6 +429,7 @@ func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 		for j := 0; j < a.shape[a2]; j++ {
 			arr.data[dataIndex] += a.data[aDIndex] * b.data[bDIndex]
 			aDIndex += aOff
+			bDIndex += bOff
 		}
 	})
 

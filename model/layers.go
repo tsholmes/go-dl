@@ -1,6 +1,8 @@
 package model
 
-import "github.com/tsholmes/go-dl/tensor"
+import (
+	"github.com/tsholmes/go-dl/tensor"
+)
 
 func onesLike(t tensor.Tensor) []int {
 	out := make([]int, len(t.Shape()))
@@ -10,7 +12,7 @@ func onesLike(t tensor.Tensor) []int {
 	return out
 }
 
-func Dense(m *Model, x tensor.Tensor, size int) tensor.Tensor {
+func Dense(m *Model, x tensor.Tensor, size int, useBias bool) tensor.Tensor {
 	axis := len(x.Shape()) - 1
 	inSz := x.Shape()[axis]
 
@@ -18,14 +20,17 @@ func Dense(m *Model, x tensor.Tensor, size int) tensor.Tensor {
 	wShape[axis-1] = inSz
 	wShape[axis] = size
 
-	bShape := onesLike(x)
-	bShape[axis] = size
-
 	weight := m.AddWeight(wShape...)
-	bias := m.AddWeight(bShape...)
 
 	x = tensor.MatMul(x, weight, axis-1, axis)
-	x = tensor.Add(x, bias)
+
+	if useBias {
+		bShape := onesLike(x)
+		bShape[axis] = size
+		bias := m.AddWeight(bShape...)
+
+		x = tensor.Add(x, bias)
+	}
 
 	return x
 }
@@ -62,6 +67,38 @@ func Conv2D(m *Model, x tensor.Tensor, kernelH int, kernelW int, filters int) te
 	x = tensor.Concat(fAxis, slices...)
 	x = tensor.MatMul(x, weight, wAxis, fAxis)
 	x = tensor.Add(x, bias)
+
+	return x
+}
+
+func AveragePooling2D(m *Model, x tensor.Tensor, poolH int, poolW int) tensor.Tensor {
+	slen := len(x.Shape())
+	fAxis := slen - 1
+	wAxis := slen - 2
+	hAxis := slen - 3
+
+	hei := x.Shape()[hAxis]
+	wid := x.Shape()[wAxis]
+	filters := x.Shape()[fAxis]
+
+	if hei%poolH != 0 {
+		x = tensor.Slice(x, hAxis, 0, hei-(hei%poolH))
+	}
+	if wid%poolW != 0 {
+		x = tensor.Slice(x, wAxis, 0, wid-(wid%poolW))
+	}
+
+	hei /= poolH
+	wid /= poolW
+
+	preShape := append([]int{}, x.Shape()[:hAxis]...)
+	preShape = append(preShape, hei, poolH, wid, poolW, filters)
+	postShape := append([]int{}, x.Shape()[:hAxis]...)
+	postShape = append(postShape, hei, wid, filters)
+
+	x = tensor.Reshape(x, preShape...)
+	x = tensor.Mean(x, hAxis+1, hAxis+3)
+	x = tensor.Reshape(x, postShape...)
 
 	return x
 }

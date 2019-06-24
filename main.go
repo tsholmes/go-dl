@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
+	"strings"
 	"time"
 
+	"github.com/tsholmes/go-dl/calc"
 	"github.com/tsholmes/go-dl/dataset"
 	"github.com/tsholmes/go-dl/model"
 	"github.com/tsholmes/go-dl/tensor"
@@ -13,7 +16,7 @@ import (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	batchSize := 100
+	batchSize := 40
 
 	Xfull, Yfull, XTestFull, YTestFull := dataset.LoadMNIST()
 	X := Xfull.Split(0, batchSize)
@@ -23,8 +26,9 @@ func main() {
 
 	X, Y, Xtest, Ytest = X[:60], Y[:60], Xtest[:10], Ytest[:10]
 
-	l1Size := 4
-	l2Size := 8
+	l1Size := 8
+	l2Size := 16
+	l3Size := 32
 
 	x := tensor.Input(batchSize, 28, 28, 1)
 	y := tensor.Input(batchSize, 10)
@@ -33,23 +37,30 @@ func main() {
 
 	var t tensor.Tensor = tensor.Reshape(x, batchSize, 28, 28, 1)
 
-	t = model.Conv2D(m, t, 3, 3, l1Size) // B * 26 * 26 * l1
+	t = model.Conv2D(m, t, 3, 3, l1Size)
 	t = tensor.ReLU(t)
-	t = model.Conv2D(m, t, 3, 3, l2Size) // B * 24 * 24 * l2
+	t = model.AveragePooling2D(m, t, 2, 2)
+
+	t = model.Conv2D(m, t, 3, 3, l2Size)
+	t = tensor.ReLU(t)
+	t = model.AveragePooling2D(m, t, 2, 2)
+
+	t = model.Conv2D(m, t, 3, 3, l3Size)
 	t = tensor.ReLU(t)
 
-	t = tensor.Flatten(t, 1) // B * (24*24*l2)
+	t = tensor.Flatten(t, 1)
 
-	t = model.Dense(m, t, 10)
+	t = model.Dense(m, t, 10, true)
 
 	pred := tensor.Softmax(t)
-	loss := tensor.Mean(tensor.CategoricalCrossEntropy(y, pred), 0)
+	loss := tensor.CategoricalCrossEntropy(y, pred)
 
 	m.Compile(x, y, pred, loss)
-	m.ClipGradients(0.1)
+	// m.ClipGradients(1.0)
+	m.L2(0.01)
 
 	const epochs = 100
-	const lr = 1e-3
+	const lr = 1e-2
 
 	for epoch := 0; epoch < epochs; epoch++ {
 		workingLoss := 0.0
@@ -66,4 +77,21 @@ func main() {
 			fmt.Printf("epoch %d/%d test batch %d/%d test loss %f\n", epoch, epochs, i, len(Xtest), workingLoss/float64(i+1))
 		}
 	}
+}
+
+func mag(w calc.NDArray) float64 {
+	ax := make([]int, len(w.Shape()))
+	for i := range ax {
+		ax[i] = i
+	}
+	return w.PowConstant(2.0).Sum(ax...).PowConstant(0.5).Get(make([]int, len(w.Shape())))
+}
+
+func display(t tensor.Tensor) string {
+	typ := reflect.TypeOf(t).String()
+	var idStrs []string
+	for _, it := range t.Inputs() {
+		idStrs = append(idStrs, fmt.Sprintf("%d", it.ID()))
+	}
+	return fmt.Sprintf("%s(%s)%v", typ, strings.Join(idStrs, ","), t.Shape())
 }

@@ -101,13 +101,12 @@ func (e *evaluationVisitor) VisitDiv(t *DivTensor) {
 func (g *gradientVisitor) VisitDiv(t *DivTensor) {
 	delta := g.collect(t)
 
-	g.push(t.a, Mul(delta, t.b))
+	g.push(t.a, Div(delta, t.b))
 	g.push(t.b, // - d*a / b^2
-		Mul(
-			Constant(calc.Constant(-1, t.Shape()...)),
+		Negate(
 			Div(
 				Mul(delta, t.a),
-				Mul(t.b, t.b),
+				PowConstant(t.b, 2),
 			),
 		),
 	)
@@ -200,9 +199,9 @@ func (e *evaluationVisitor) VisitLog(t *LogTensor) {
 func (g *gradientVisitor) VisitLog(t *LogTensor) {
 	delta := g.collect(t)
 
-	g.push(t.t, Mul(
+	g.push(t.t, Div(
 		delta,
-		PowConstant(t.t, -1),
+		t.t,
 	))
 }
 
