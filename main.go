@@ -26,9 +26,9 @@ func main() {
 
 	X, Y, Xtest, Ytest = X[:60], Y[:60], Xtest[:10], Ytest[:10]
 
-	l1Size := 8
-	l2Size := 16
-	l3Size := 32
+	l1Size := 16
+	l2Size := 32
+	l3Size := 64
 
 	x := tensor.Input(batchSize, 28, 28, 1)
 	y := tensor.Input(batchSize, 10)
