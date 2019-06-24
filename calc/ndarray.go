@@ -156,6 +156,13 @@ func (a NDArray) Set(index []int, value float64) {
 	a.data[a.dataIndex(index)] = value
 }
 
+func (a NDArray) SetSlice(b NDArray, axis int, offset int) {
+	b.ForEach(func(dataIndex int, index []int, value float64) {
+		index[axis] += offset
+		a.Set(index, value)
+	})
+}
+
 func (a NDArray) Shape() []int {
 	return a.shape
 }
@@ -286,6 +293,18 @@ func (a NDArray) Concat(b NDArray, axis int) NDArray {
 		}
 	})
 	return c
+}
+
+func (a NDArray) Slice(axis int, start int, end int) NDArray {
+	outShape := append([]int{}, a.shape...)
+	outShape[axis] = end - start
+
+	arr := Zeros(outShape...)
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		index[axis] += start
+		arr.data[dataIndex] = a.Get(index)
+	})
+	return arr
 }
 
 func (a NDArray) Sign() NDArray {

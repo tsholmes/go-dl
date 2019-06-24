@@ -1,6 +1,8 @@
 package tensor
 
-import "github.com/tsholmes/go-dl/calc"
+import (
+	"github.com/tsholmes/go-dl/calc"
+)
 
 func elementWise(as ...Tensor) []int {
 	// TODO: validate equal
@@ -31,4 +33,21 @@ func transpose(a Tensor, a1 int, a2 int) []int {
 
 func matMul(a Tensor, b Tensor, a1 int, a2 int) []int {
 	return calc.MatMulShape(a.Shape(), b.Shape(), a1, a2)
+}
+
+func resize(a Tensor, axis int, size int) []int {
+	shape := make([]int, len(a.Shape()))
+	copy(shape, a.Shape())
+
+	shape[axis] = size
+	return shape
+}
+
+func shapeEq(s1 []int, s2 []int) bool {
+	for i := range s1 {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+	return true
 }

@@ -42,6 +42,10 @@ func (g *gradientVisitor) collect(tensor Tensor) Tensor {
 	} else {
 		gradient = Add(partials...)
 	}
+	if !shapeEq(gradient.Shape(), tensor.Shape()) {
+		// Make sure the gradient is exactly the size of the tensor
+		gradient = Mul(gradient, Ones(tensor.Shape()...))
+	}
 	g.gradients[tensor.ID()] = gradient
 	return gradient
 }

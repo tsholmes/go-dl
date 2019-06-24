@@ -21,6 +21,8 @@ type TensorVisitor interface {
 	VisitLog(t *LogTensor)
 	VisitExp(t *ExpTensor)
 	VisitConcat(t *ConcatTensor)
+	VisitSlice(t *SliceTensor)
+	VisitUnslice(t *UnsliceTensor)
 	VisitTranspose(t *TransposeTensor)
 	VisitSum(t *SumTensor)
 	VisitGreater(t *GreaterTensor)
