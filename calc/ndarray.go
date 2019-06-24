@@ -101,6 +101,14 @@ func TransposeShape(shape []int, a1 int, a2 int) []int {
 	return outShape
 }
 
+func FromRaw(shape []int, data []float64) NDArray {
+	// TODO: validate len(data) = prod(shape)
+	return NDArray{
+		shape: shape,
+		data:  data,
+	}
+}
+
 type NDArray struct {
 	shape []int
 	data  []float64

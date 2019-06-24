@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tsholmes/go-dl/calc"
+	"github.com/tsholmes/go-dl/dataset"
 	"github.com/tsholmes/go-dl/model"
 	"github.com/tsholmes/go-dl/tensor"
 )
@@ -25,6 +26,11 @@ func weight(shape ...int) (tensor.Tensor, calc.NDArray) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+
+	dataset.LoadMNIST()
+	if true {
+		return
+	}
 
 	batchSize := 100
 	l1Size := 16
