@@ -132,3 +132,38 @@ func (g *gradientVisitor) VisitTranspose(t *TransposeTensor) {
 
 	g.push(t.t, Transpose(delta, t.a1, t.a2))
 }
+
+func Reshape(t Tensor, shape ...int) Tensor {
+	return &ReshapeTensor{
+		baseTensor: base(shape, t),
+		t:          t,
+	}
+}
+
+type ReshapeTensor struct {
+	baseTensor
+	t Tensor
+}
+
+func (t *ReshapeTensor) Visit(v TensorVisitor) { v.VisitReshape(t) }
+
+func (e *evaluationVisitor) VisitReshape(t *ReshapeTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Reshape(t.Shape()...)
+}
+
+func (g *gradientVisitor) VisitReshape(t *ReshapeTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, Reshape(delta, t.t.Shape()...))
+}
+
+// flattens all axes after `axis` into 1
+func Flatten(t Tensor, axis int) Tensor {
+	shape := append([]int{}, t.Shape()...)
+	for i := axis + 1; i < len(shape); i++ {
+		shape[axis] *= shape[i]
+	}
+	shape = shape[:axis+1]
+	return Reshape(t, shape...)
+}

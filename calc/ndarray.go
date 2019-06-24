@@ -1,6 +1,7 @@
 package calc
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -315,6 +316,36 @@ func (a NDArray) Slice(axis int, start int, end int) NDArray {
 	return arr
 }
 
+func (a NDArray) Split(axis int, batch int) []NDArray {
+	if a.shape[axis]%batch != 0 {
+		panic(fmt.Sprintf("Cannot split %v on axis %d into batches of %d", a.shape, axis, batch))
+	}
+	batchCount := a.shape[axis] / batch
+	batchShape := append([]int{}, a.shape...)
+	batchShape[axis] = batch
+
+	arrs := make([]NDArray, batchCount)
+	for i := range arrs {
+		arrs[i] = Zeros(batchShape...)
+	}
+
+	a.ForEach(func(dataIndex int, index []int, value float64) {
+		batchI := index[axis] / batch
+		index[axis] -= batchI * batch
+		arrs[batchI].Set(index, value)
+	})
+
+	return arrs
+}
+
+func (a NDArray) Reshape(shape ...int) NDArray {
+	// TODO: validate prod(a.shape) == prod(shape)
+	return NDArray{
+		shape: shape,
+		data:  a.data,
+	}
+}
+
 func (a NDArray) Sign() NDArray {
 	arr := Zeros(a.Shape()...)
 	for i, v := range a.data {
@@ -392,13 +423,12 @@ func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 
 		aIndex[a2], bIndex[a1] = 0, 0
 
-		aDIndex := a.dataIndex(aIndex)
-		bDIndex := b.dataIndex(bIndex)
+		aDIndex := a.dataIndexBroadcast(aIndex)
+		bDIndex := b.dataIndexBroadcast(bIndex)
 
 		for j := 0; j < a.shape[a2]; j++ {
 			arr.data[dataIndex] += a.data[aDIndex] * b.data[bDIndex]
 			aDIndex += aOff
-			bDIndex += bOff
 		}
 	})
 
@@ -433,5 +463,19 @@ func (a NDArray) Exp() NDArray {
 		arr.data[i] = math.Exp(v)
 	}
 
+	return arr
+}
+
+func (a NDArray) Clip(min float64, max float64) NDArray {
+	arr := Zeros(a.shape...)
+
+	for i, v := range a.data {
+		if v < min {
+			v = min
+		} else if v > max {
+			v = max
+		}
+		arr.data[i] = v
+	}
 	return arr
 }

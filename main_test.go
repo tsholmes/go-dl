@@ -1,11 +1,24 @@
 package main
 
 import (
+	"math"
 	"testing"
 
 	"github.com/tsholmes/go-dl/calc"
 	"github.com/tsholmes/go-dl/tensor"
 )
+
+func weight(shape ...int) (tensor.Tensor, calc.NDArray) {
+	nParams := 1
+	for _, i := range shape {
+		nParams *= i
+	}
+	init := math.Sqrt(2.0 / float64(nParams))
+
+	t := tensor.Input(shape...)
+	v := calc.RandomUniform(-init, init, shape...)
+	return t, v
+}
 
 func BenchmarkModel(b *testing.B) {
 

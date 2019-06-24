@@ -10,3 +10,12 @@ func Sigmoid(t Tensor) Tensor {
 		-1,
 	)
 }
+
+func Softmax(t Tensor) Tensor {
+	axis := len(t.Shape()) - 1
+
+	e := Exp(t)
+	s := Sum(e, axis)
+
+	return Div(e, s)
+}

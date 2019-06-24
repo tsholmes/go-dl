@@ -26,6 +26,9 @@ type Model struct {
 	trainEval   tensor.Evaluation
 	testEval    tensor.Evaluation
 	predictEval tensor.Evaluation
+
+	// configurable
+	gradientClip float64
 }
 
 func (m *Model) AddWeight(shape ...int) tensor.Tensor {
@@ -33,7 +36,7 @@ func (m *Model) AddWeight(shape ...int) tensor.Tensor {
 	for _, s := range shape {
 		sz *= s
 	}
-	init := math.Sqrt(2.0 / float64(sz))
+	init := math.Sqrt(1.0 / float64(sz))
 
 	t := tensor.Input(shape...)
 	v := calc.RandomUniform(-init, init, shape...)
@@ -42,6 +45,10 @@ func (m *Model) AddWeight(shape ...int) tensor.Tensor {
 	m.weightVals = append(m.weightVals, v)
 
 	return t
+}
+
+func (m *Model) ClipGradients(clip float64) {
+	m.gradientClip = clip
 }
 
 func (m *Model) Compile(input tensor.Tensor, yTrue tensor.Tensor, yPred tensor.Tensor, loss tensor.Tensor) {
@@ -69,8 +76,21 @@ func (m *Model) weightProvisions() []tensor.ProvidedInput {
 }
 
 func (m *Model) updateWeights(grads []calc.NDArray, lr float64) {
-	for i := range m.weightVals {
-		m.weightVals[i] = m.weightVals[i].Add(grads[i].MulConstant(-lr))
+	for i, w := range m.weightVals {
+		g := grads[i]
+		var meanAxes []int
+		for j := range w.Shape() {
+			if w.Shape()[j] == 1 && g.Shape()[j] > 1 {
+				meanAxes = append(meanAxes, j)
+			}
+		}
+		if len(meanAxes) > 0 {
+			g = g.Mean(meanAxes...)
+		}
+		if m.gradientClip > 0 {
+			g = g.Clip(-m.gradientClip, m.gradientClip)
+		}
+		m.weightVals[i] = w.Add(g.MulConstant(-lr))
 	}
 }
 

@@ -13,3 +13,11 @@ func BinaryCrossEntropy(yTrue Tensor, yPred Tensor) Tensor {
 		len(yTrue.Shape())-1,
 	))
 }
+
+func CategoricalCrossEntropy(yTrue Tensor, yPred Tensor) Tensor {
+	// -sum(y log(yp))
+	return Negate(Sum(
+		Mul(yTrue, Log(yPred)),
+		len(yTrue.Shape())-1,
+	))
+}

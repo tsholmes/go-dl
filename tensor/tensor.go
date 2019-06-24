@@ -24,6 +24,7 @@ type TensorVisitor interface {
 	VisitSlice(t *SliceTensor)
 	VisitUnslice(t *UnsliceTensor)
 	VisitTranspose(t *TransposeTensor)
+	VisitReshape(t *ReshapeTensor)
 	VisitSum(t *SumTensor)
 	VisitGreater(t *GreaterTensor)
 	VisitReLU(t *ReLUTensor)
