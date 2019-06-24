@@ -26,7 +26,9 @@ type TensorVisitor interface {
 	VisitTranspose(t *TransposeTensor)
 	VisitReshape(t *ReshapeTensor)
 	VisitSum(t *SumTensor)
+	VisitMax(t *MaxTensor)
 	VisitGreater(t *GreaterTensor)
+	VisitEqual(t *EqualTensor)
 	VisitReLU(t *ReLUTensor)
 }
 

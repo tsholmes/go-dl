@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+const Epsilon = 1e-9
+
 func Zeros(shape ...int) NDArray {
 	size := 1
 	for _, s := range shape {
@@ -388,6 +390,18 @@ func (a NDArray) Mean(axes ...int) NDArray {
 	return arr
 }
 
+func (a NDArray) Max(axes ...int) NDArray {
+	arr := Constant(math.Inf(-1), AggrShape(a.shape, axes)...)
+	a.ForEach(func(dataIndex int, index []int, value float64) {
+		idx := arr.dataIndexBroadcast(index)
+		if value > arr.data[idx] {
+			arr.data[idx] = value
+		}
+	})
+
+	return arr
+}
+
 func (a NDArray) Greater(b NDArray) NDArray {
 	arr := Zeros(BroadcastShape(a.shape, b.shape)...)
 
@@ -395,6 +409,20 @@ func (a NDArray) Greater(b NDArray) NDArray {
 		av := a.data[a.dataIndexBroadcast(index)]
 		bv := b.data[b.dataIndexBroadcast(index)]
 		if av > bv {
+			arr.data[dataIndex] = 1.
+		}
+	})
+
+	return arr
+}
+
+func (a NDArray) Equal(b NDArray) NDArray {
+	arr := Zeros(BroadcastShape(a.shape, b.shape)...)
+
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		av := a.data[a.dataIndexBroadcast(index)]
+		bv := b.data[b.dataIndexBroadcast(index)]
+		if math.Abs(av-bv) < Epsilon {
 			arr.data[dataIndex] = 1.
 		}
 	})

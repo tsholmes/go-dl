@@ -102,3 +102,35 @@ func AveragePooling2D(m *Model, x tensor.Tensor, poolH int, poolW int) tensor.Te
 
 	return x
 }
+
+func MaxPooling2D(m *Model, x tensor.Tensor, poolH int, poolW int) tensor.Tensor {
+	slen := len(x.Shape())
+	fAxis := slen - 1
+	wAxis := slen - 2
+	hAxis := slen - 3
+
+	hei := x.Shape()[hAxis]
+	wid := x.Shape()[wAxis]
+	filters := x.Shape()[fAxis]
+
+	if hei%poolH != 0 {
+		x = tensor.Slice(x, hAxis, 0, hei-(hei%poolH))
+	}
+	if wid%poolW != 0 {
+		x = tensor.Slice(x, wAxis, 0, wid-(wid%poolW))
+	}
+
+	hei /= poolH
+	wid /= poolW
+
+	preShape := append([]int{}, x.Shape()[:hAxis]...)
+	preShape = append(preShape, hei, poolH, wid, poolW, filters)
+	postShape := append([]int{}, x.Shape()[:hAxis]...)
+	postShape = append(postShape, hei, wid, filters)
+
+	x = tensor.Reshape(x, preShape...)
+	x = tensor.Max(x, hAxis+1, hAxis+3)
+	x = tensor.Reshape(x, postShape...)
+
+	return x
+}

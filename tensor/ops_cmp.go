@@ -77,6 +77,32 @@ func (g *gradientVisitor) VisitGreater(t *GreaterTensor) {
 	panic("Greater is not differentiable")
 }
 
+func Equal(a Tensor, b Tensor) Tensor {
+	return &EqualTensor{
+		baseTensor: base(elementWise(a, b), a, b),
+		a:          a,
+		b:          b,
+	}
+}
+
+type EqualTensor struct {
+	baseTensor
+	a Tensor
+	b Tensor
+}
+
+func (t *EqualTensor) Visit(v TensorVisitor) { v.VisitEqual(t) }
+
+func (e *evaluationVisitor) VisitEqual(t *EqualTensor) {
+	a := e.value(t.a)
+	b := e.value(t.b)
+	e.values[t.ID()] = a.Equal(b)
+}
+
+func (g *gradientVisitor) VisitEqual(t *EqualTensor) {
+	panic("Equal is not differentiable")
+}
+
 func ReLU(t Tensor) Tensor {
 	return &ReLUTensor{
 		baseTensor: base(t.Shape(), t),
