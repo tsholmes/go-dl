@@ -24,7 +24,7 @@ func main() {
 	Xtest := XTestFull.Split(0, batchSize)
 	Ytest := YTestFull.Split(0, batchSize)
 
-	X, Y, Xtest, Ytest = X[:60], Y[:60], Xtest[:10], Ytest[:10]
+	X, Y, Xtest, Ytest = X[:600], Y[:600], Xtest[:100], Ytest[:100]
 
 	l1Size := 16
 	l2Size := 32
@@ -62,11 +62,18 @@ func main() {
 	const epochs = 10
 	const lr = 1e-3
 
+	index := make([]int, len(X))
+	for i := range index {
+		index[i] = i
+	}
+
 	for epoch := 0; epoch < epochs; epoch++ {
+		rand.Shuffle(len(index), func(i, j int) { index[i], index[j] = index[j], index[i] })
 		workingLoss := 0.0
 		workingAcc := 0.0
 		for i := range X {
-			bX, bY := X[i], Y[i]
+			idx := index[i]
+			bX, bY := X[idx], Y[idx]
 			start := time.Now()
 			bloss, bmet := m.Train(bX, bY, lr)
 			workingLoss += bloss
