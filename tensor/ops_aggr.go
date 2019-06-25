@@ -4,7 +4,7 @@ import "github.com/tsholmes/go-dl/calc"
 
 func Sum(t Tensor, axes ...int) Tensor {
 	return &SumTensor{
-		baseTensor: base(aggr(t, axes...), t),
+		baseTensor: base(aggr(t, axes...), 0, t),
 		t:          t,
 		axes:       axes,
 	}
@@ -42,7 +42,7 @@ func Mean(t Tensor, axes ...int) Tensor {
 
 func Max(t Tensor, axes ...int) Tensor {
 	return &MaxTensor{
-		baseTensor: base(aggr(t, axes...), t),
+		baseTensor: base(aggr(t, axes...), 0, t),
 		t:          t,
 		axes:       axes,
 	}

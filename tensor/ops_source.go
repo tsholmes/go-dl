@@ -4,7 +4,7 @@ import "github.com/tsholmes/go-dl/calc"
 
 func Input(shape ...int) Tensor {
 	return &InputTensor{
-		baseTensor: base(shape),
+		baseTensor: base(shape, 0),
 		shape:      shape,
 	}
 }
@@ -27,7 +27,7 @@ func (g *gradientVisitor) VisitInput(t *InputTensor) {
 
 func Constant(value calc.NDArray) Tensor {
 	return &ConstantTensor{
-		baseTensor: base(value.Shape()),
+		baseTensor: base(value.Shape(), 0),
 		value:      value,
 	}
 }

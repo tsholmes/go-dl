@@ -22,11 +22,13 @@ type TensorVisitor interface {
 	VisitMatMul(t *MatMulTensor)
 	VisitLog(t *LogTensor)
 	VisitExp(t *ExpTensor)
+	VisitConv2D(t *Conv2DTensor)
 	VisitConcat(t *ConcatTensor)
 	VisitSlice(t *SliceTensor)
 	VisitUnslice(t *UnsliceTensor)
 	VisitTranspose(t *TransposeTensor)
 	VisitReshape(t *ReshapeTensor)
+	VisitReverse(t *ReverseTensor)
 	VisitSum(t *SumTensor)
 	VisitMax(t *MaxTensor)
 	VisitGreater(t *GreaterTensor)
@@ -41,7 +43,7 @@ type baseTensor struct {
 	shape  []int
 	inputs []Tensor
 
-	value calc.NDArray
+	values []calc.NDArray
 }
 
 func (b *baseTensor) ID() int64 {
@@ -56,14 +58,19 @@ func (b *baseTensor) Inputs() []Tensor {
 	return b.inputs
 }
 
-func base(shape []int, inputs ...Tensor) baseTensor {
+func base(shape []int, tempValues int, inputs ...Tensor) baseTensor {
 	// TODO: lock around nextID
 	id := nextID
 	nextID++
+
+	values := make([]calc.NDArray, tempValues)
+	for i := range values {
+		values[i] = calc.Zeros(shape...)
+	}
 	return baseTensor{
 		id:     id,
 		shape:  shape,
 		inputs: inputs,
-		value:  calc.Zeros(shape...),
+		values: values,
 	}
 }

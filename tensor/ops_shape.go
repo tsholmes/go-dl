@@ -6,7 +6,7 @@ import (
 
 func Concat(axis int, as ...Tensor) Tensor {
 	return &ConcatTensor{
-		baseTensor: base(concat(axis, as...), as...),
+		baseTensor: base(concat(axis, as...), 0, as...),
 		axis:       axis,
 		as:         as,
 	}
@@ -42,7 +42,7 @@ func (g *gradientVisitor) VisitConcat(t *ConcatTensor) {
 
 func Slice(t Tensor, axis int, start int, end int) Tensor {
 	return &SliceTensor{
-		baseTensor: base(resize(t, axis, end-start), t),
+		baseTensor: base(resize(t, axis, end-start), 0, t),
 		t:          t,
 		axis:       axis,
 		start:      start,
@@ -73,7 +73,7 @@ func (g *gradientVisitor) VisitSlice(t *SliceTensor) {
 
 func Unslice(t Tensor, axis int, size int, offset int) Tensor {
 	return &UnsliceTensor{
-		baseTensor: base(resize(t, axis, size), t),
+		baseTensor: base(resize(t, axis, size), 0, t),
 		t:          t,
 		axis:       axis,
 		size:       size,
@@ -106,7 +106,7 @@ func (g *gradientVisitor) VisitUnslice(t *UnsliceTensor) {
 
 func Transpose(t Tensor, a1 int, a2 int) Tensor {
 	return &TransposeTensor{
-		baseTensor: base(transpose(t, a1, a2), t),
+		baseTensor: base(transpose(t, a1, a2), 0, t),
 		t:          t,
 		a1:         a1,
 		a2:         a2,
@@ -135,7 +135,7 @@ func (g *gradientVisitor) VisitTranspose(t *TransposeTensor) {
 
 func Reshape(t Tensor, shape ...int) Tensor {
 	return &ReshapeTensor{
-		baseTensor: base(shape, t),
+		baseTensor: base(shape, 0, t),
 		t:          t,
 	}
 }
@@ -166,4 +166,30 @@ func Flatten(t Tensor, axis int) Tensor {
 	}
 	shape = shape[:axis+1]
 	return Reshape(t, shape...)
+}
+
+func Reverse(t Tensor, axes ...int) Tensor {
+	return &ReverseTensor{
+		baseTensor: base(t.Shape(), 0, t),
+		t:          t,
+	}
+}
+
+type ReverseTensor struct {
+	baseTensor
+	t    Tensor
+	axes []int
+}
+
+func (t *ReverseTensor) Visit(v TensorVisitor) { v.VisitReverse(t) }
+
+func (e *evaluationVisitor) VisitReverse(t *ReverseTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Reverse(t.axes...)
+}
+
+func (g *gradientVisitor) VisitReverse(t *ReverseTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, Reverse(delta, t.axes...))
 }

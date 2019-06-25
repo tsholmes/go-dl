@@ -41,6 +41,26 @@ func Conv2D(m *Model, x tensor.Tensor, kernelH int, kernelW int, filters int) te
 	wAxis := slen - 2
 	hAxis := slen - 3
 	inFilters := x.Shape()[fAxis]
+
+	biasShape := onesLike(x)
+	biasShape[fAxis] = filters
+
+	weight := m.AddWeight(kernelH, kernelW, inFilters, filters)
+	bias := m.AddWeight(biasShape...)
+
+	x = tensor.Conv2D(x, weight, hAxis, wAxis, fAxis)
+	x = tensor.Add(x, bias)
+
+	return x
+}
+
+// Older version that implements convolutions as a bunch of shaping and a matmul
+func ConstructedConv2D(m *Model, x tensor.Tensor, kernelH int, kernelW int, filters int) tensor.Tensor {
+	slen := len(x.Shape())
+	fAxis := slen - 1
+	wAxis := slen - 2
+	hAxis := slen - 3
+	inFilters := x.Shape()[fAxis]
 	inW := x.Shape()[wAxis]
 	inH := x.Shape()[hAxis]
 

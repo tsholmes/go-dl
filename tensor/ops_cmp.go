@@ -4,7 +4,7 @@ import "github.com/tsholmes/go-dl/calc"
 
 func Abs(t Tensor) Tensor {
 	return &AbsTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 	}
 }
@@ -30,7 +30,7 @@ func (g *gradientVisitor) VisitAbs(t *AbsTensor) {
 
 func Sign(t Tensor) Tensor {
 	return &SignTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 	}
 }
@@ -53,7 +53,7 @@ func (g *gradientVisitor) VisitSign(t *SignTensor) {
 
 func Greater(a Tensor, b Tensor) Tensor {
 	return &GreaterTensor{
-		baseTensor: base(elementWise(a, b), a, b),
+		baseTensor: base(elementWise(a, b), 0, a, b),
 		a:          a,
 		b:          b,
 	}
@@ -79,7 +79,7 @@ func (g *gradientVisitor) VisitGreater(t *GreaterTensor) {
 
 func Equal(a Tensor, b Tensor) Tensor {
 	return &EqualTensor{
-		baseTensor: base(elementWise(a, b), a, b),
+		baseTensor: base(elementWise(a, b), 0, a, b),
 		a:          a,
 		b:          b,
 	}
@@ -105,7 +105,7 @@ func (g *gradientVisitor) VisitEqual(t *EqualTensor) {
 
 func ReLU(t Tensor) Tensor {
 	return &ReLUTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 	}
 }

@@ -104,6 +104,14 @@ func TransposeShape(shape []int, a1 int, a2 int) []int {
 	return outShape
 }
 
+func Conv2DShape(shape []int, hAxis int, wAxis int, fAxis int, kernelH int, kernelW int, kernelF int) []int {
+	outShape := append([]int{}, shape...)
+	outShape[hAxis] -= kernelH - 1
+	outShape[wAxis] -= kernelW - 1
+	outShape[fAxis] = kernelF
+	return outShape
+}
+
 func FromRaw(shape []int, data []float64) NDArray {
 	// TODO: validate len(data) = prod(shape)
 	return NDArray{
@@ -529,5 +537,57 @@ func (a NDArray) Clip(min float64, max float64) NDArray {
 		}
 		arr.data[i] = v
 	}
+	return arr
+}
+
+func (a NDArray) Reverse(axes ...int) NDArray {
+	arr := Zeros(a.shape...)
+	a.ForEach(func(dataIndex int, index []int, value float64) {
+		for _, ax := range axes {
+			index[ax] = a.Shape()[ax] - index[ax] - 1
+		}
+		arr.Set(index, value)
+	})
+	return arr
+}
+
+func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
+	kShape := k.Shape()
+	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
+	arr := Zeros(Conv2DShape(a.Shape(), hAxis, wAxis, fAxis, kh, kw, kf)...)
+
+	var iHOff, iWOff, iFOff int
+	iSize := 1
+	for i := len(a.shape) - 1; i >= 0; i-- {
+		if i == fAxis {
+			iFOff = iSize
+		} else if i == wAxis {
+			iWOff = iSize
+		} else if i == hAxis {
+			iHOff = iSize
+		}
+		iSize *= a.shape[i]
+	}
+
+	kFOff := 1
+	kIFOff := kFOff * kf
+	kWOff := kIFOff * inf
+	kHOff := kWOff * kw
+
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		fIndex := index[fAxis]
+		index[fAxis] = 0
+		iDataIndex := a.dataIndex(index)
+
+		for h := 0; h < kh; h++ {
+			for w := 0; w < kw; w++ {
+				for f := 0; f < inf; f++ {
+					arr.data[dataIndex] +=
+						a.data[iDataIndex+h*iHOff+w*iWOff+f*iFOff] *
+							k.data[h*kHOff+w*kWOff+f*kIFOff+fIndex*kFOff]
+				}
+			}
+		}
+	})
 	return arr
 }

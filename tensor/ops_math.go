@@ -7,22 +7,20 @@ import (
 func Add(as ...Tensor) Tensor {
 	shape := elementWise(as...)
 	return &AddTensor{
-		baseTensor: base(shape, as...),
+		baseTensor: base(shape, 2, as...),
 		as:         as,
-		value2:     calc.Zeros(shape...),
 	}
 }
 
 type AddTensor struct {
 	baseTensor
-	as     []Tensor
-	value2 calc.NDArray
+	as []Tensor
 }
 
 func (t *AddTensor) Visit(v TensorVisitor) { v.VisitAdd(t) }
 
 func (e *evaluationVisitor) VisitAdd(t *AddTensor) {
-	v, v2 := t.value, t.value2
+	v, v2 := t.values[0], t.values[1]
 	v.Fill(0.0)
 	for _, a := range t.as {
 		v2 = v.Add(e.value(a))
@@ -46,22 +44,20 @@ func Sub(a Tensor, b Tensor) Tensor {
 func Mul(as ...Tensor) Tensor {
 	shape := elementWise(as...)
 	return &MulTensor{
-		baseTensor: base(shape, as...),
+		baseTensor: base(shape, 2, as...),
 		as:         as,
-		value2:     calc.Zeros(shape...),
 	}
 }
 
 type MulTensor struct {
 	baseTensor
-	as     []Tensor
-	value2 calc.NDArray
+	as []Tensor
 }
 
 func (t *MulTensor) Visit(v TensorVisitor) { v.VisitMul(t) }
 
 func (e *evaluationVisitor) VisitMul(t *MulTensor) {
-	v, v2 := t.value, t.value2
+	v, v2 := t.values[0], t.values[1]
 	v.Fill(1.0)
 	for _, a := range t.as {
 		v2 = v.MulInto(e.value(a), v2)
@@ -87,7 +83,7 @@ func Negate(t Tensor) Tensor {
 
 func Div(a Tensor, b Tensor) Tensor {
 	return &DivTensor{
-		baseTensor: base(elementWise(a, b), a, b),
+		baseTensor: base(elementWise(a, b), 0, a, b),
 		a:          a,
 		b:          b,
 	}
@@ -124,7 +120,7 @@ func (g *gradientVisitor) VisitDiv(t *DivTensor) {
 
 func PowConstant(t Tensor, p float64) Tensor {
 	return &PowConstantTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 		p:          p,
 	}
@@ -155,7 +151,7 @@ func (g *gradientVisitor) VisitPowConstant(t *PowConstantTensor) {
 
 func MatMul(a Tensor, b Tensor, a1 int, a2 int) Tensor {
 	return &MatMulTensor{
-		baseTensor: base(matMul(a, b, a1, a2), a, b),
+		baseTensor: base(matMul(a, b, a1, a2), 1, a, b),
 		a:          a,
 		b:          b,
 		a1:         a1,
@@ -177,7 +173,7 @@ func (e *evaluationVisitor) VisitMatMul(t *MatMulTensor) {
 	a := e.value(t.a)
 	b := e.value(t.b)
 
-	e.values[t.ID()] = a.MatMulInto(b, t.a1, t.a2, t.value)
+	e.values[t.ID()] = a.MatMulInto(b, t.a1, t.a2, t.values[0])
 }
 
 func (g *gradientVisitor) VisitMatMul(t *MatMulTensor) {
@@ -189,7 +185,7 @@ func (g *gradientVisitor) VisitMatMul(t *MatMulTensor) {
 
 func Log(t Tensor) Tensor {
 	return &LogTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 	}
 }
@@ -217,7 +213,7 @@ func (g *gradientVisitor) VisitLog(t *LogTensor) {
 
 func Exp(t Tensor) Tensor {
 	return &ExpTensor{
-		baseTensor: base(t.Shape(), t),
+		baseTensor: base(t.Shape(), 0, t),
 		t:          t,
 	}
 }
@@ -241,4 +237,52 @@ func (g *gradientVisitor) VisitExp(t *ExpTensor) {
 		delta,
 		t,
 	))
+}
+
+// k must be (h, w, tFilters, outFilters)
+func Conv2D(t Tensor, k Tensor, hAxis int, wAxis int, fAxis int) Tensor {
+	kh, kw := k.Shape()[0], k.Shape()[1]
+	return &Conv2DTensor{
+		baseTensor: base(conv2d(t, k, hAxis, wAxis, fAxis), 0, t, k),
+		t:          t,
+		k:          k,
+		hAxis:      hAxis,
+		wAxis:      wAxis,
+		fAxis:      fAxis,
+		padH:       kh - 1,
+		padW:       kw - 1,
+	}
+}
+
+type Conv2DTensor struct {
+	baseTensor
+	t     Tensor
+	k     Tensor
+	hAxis int
+	wAxis int
+	fAxis int
+	padH  int
+	padW  int
+}
+
+func (t *Conv2DTensor) Visit(v TensorVisitor) { v.VisitConv2D(t) }
+
+func (e *evaluationVisitor) VisitConv2D(t *Conv2DTensor) {
+	i := e.value(t.t)
+	k := e.value(t.k)
+
+	v := i.Conv2D(k, t.hAxis, t.wAxis, t.fAxis)
+
+	e.values[t.ID()] = v
+}
+
+func (g *gradientVisitor) VisitConv2D(t *Conv2DTensor) {
+	delta := g.collect(t)
+
+	delta = Unslice(delta, t.hAxis, t.Shape()[t.hAxis]+t.padH*2, t.padH)
+	delta = Unslice(delta, t.wAxis, t.Shape()[t.wAxis]+t.padW*2, t.padW)
+
+	out := Conv2D(delta, Transpose(Reverse(t.k, 0, 1), 2, 3), t.hAxis, t.wAxis, t.fAxis)
+
+	g.push(t.t, out)
 }
