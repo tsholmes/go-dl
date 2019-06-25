@@ -2,9 +2,12 @@ package main
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"github.com/tsholmes/go-dl/calc"
+	"github.com/tsholmes/go-dl/dataset"
+	"github.com/tsholmes/go-dl/model"
 	"github.com/tsholmes/go-dl/tensor"
 )
 
@@ -20,79 +23,55 @@ func weight(shape ...int) (tensor.Tensor, calc.NDArray) {
 	return t, v
 }
 
-func BenchmarkModel(b *testing.B) {
+var X, Y calc.NDArray
 
-	batchSize := 100
-	l1Size := 100
-	l2Size := 200
-
-	x := tensor.Input(batchSize, 2)
-	y := tensor.Input(batchSize, 1)
-
-	w1, w1v := weight(2, l1Size)
-	b1, b1v := weight(1, l1Size)
-	w2, w2v := weight(l1Size, l2Size)
-	b2, b2v := weight(1, l2Size)
-	w3, w3v := weight(l2Size, 1)
-	b3, b3v := weight(1, 1)
-
-	var t tensor.Tensor = x
-
-	t = tensor.MatMul(t, w1, 0, 1)
-	t = tensor.Add(t, b1)
-	t = tensor.ReLU(t)
-	t = tensor.MatMul(t, w2, 0, 1)
-	t = tensor.Add(t, b2)
-	t = tensor.ReLU(t)
-	t = tensor.MatMul(t, w3, 0, 1)
-	t = tensor.Add(t, b3)
-
-	pred := tensor.Sigmoid(t)
-	loss := tensor.BinaryCrossEntropy(y, pred)
-
-	gradients := tensor.Gradients(loss)
-
-	evalTrain := tensor.MakeEvaluation(
-		loss,
-		gradients[w1.ID()],
-		gradients[b1.ID()],
-		gradients[w2.ID()],
-		gradients[b2.ID()],
-		gradients[w3.ID()],
-		gradients[b3.ID()],
-	)
-
-	Yfor := func(x calc.NDArray) calc.NDArray {
-		// return x.Add(x.Greater(calc.Zeros(x.Shape()...)).Mul(x)).Add(calc.Constant(10.0, x.Shape()...))
-		// return x.PowConstant(2.0)
-		return x.PowConstant(2.0).Sum(1).PowConstant(0.5).Greater(calc.Constant(0.5, 1, 1))
+func loadData() {
+	if len(X.Shape()) > 0 {
+		return
 	}
+	Xfull, Yfull, _, _ := dataset.LoadMNIST()
+	X = Xfull.Split(0, 10)[0]
+	Y = Yfull.Split(0, 10)[0]
+}
 
+func TestMain(m *testing.M) {
+	loadData()
+	os.Exit(m.Run())
+}
+
+func BenchmarkModel(b *testing.B) {
+	batchSize := 10
+	l1Size := 16
+	l2Size := 32
+
+	x := tensor.Input(batchSize, 28, 28, 1)
+	y := tensor.Input(batchSize, 10)
+
+	m := model.NewModel()
+
+	var t tensor.Tensor = tensor.Reshape(x, batchSize, 28, 28, 1)
+
+	t = model.MaxPooling2D(m, t, 2, 2)
+
+	t = model.Conv2D(m, t, 3, 3, l1Size)
+	t = tensor.ReLU(t)
+	t = model.MaxPooling2D(m, t, 2, 2)
+
+	t = model.Conv2D(m, t, 3, 3, l2Size)
+	t = tensor.ReLU(t)
+
+	t = tensor.Flatten(t, 1)
+
+	t = model.Dense(m, t, 10, true)
+
+	pred := tensor.Softmax(t)
+	loss := tensor.CategoricalCrossEntropy(y, pred)
+
+	m.Compile(x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		X := calc.RandomUniform(0.0, 1.0, batchSize, 2)
-		Y := Yfor(X)
-
-		outs := evalTrain.Evaluate(
-			tensor.Provide(x, X),
-			tensor.Provide(y, Y),
-			tensor.Provide(w1, w1v),
-			tensor.Provide(b1, b1v),
-			tensor.Provide(w2, w2v),
-			tensor.Provide(b2, b2v),
-			tensor.Provide(w3, w3v),
-			tensor.Provide(b3, b3v),
-		)
-
-		// lr := -math.Pow(10.0, -2-math.Sqrt(float64(i)/500.0))
-		lr := -1e-3
-		w1v = w1v.Add(outs[1].MulConstant(lr))
-		b1v = b1v.Add(outs[2].MulConstant(lr))
-		w2v = w2v.Add(outs[3].MulConstant(lr))
-		b2v = b2v.Add(outs[4].MulConstant(lr))
-		w3v = w3v.Add(outs[5].MulConstant(lr))
-		b3v = b3v.Add(outs[6].MulConstant(lr))
+		m.Train(X, Y, 0.01)
 	}
 }

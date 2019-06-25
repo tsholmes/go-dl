@@ -5,23 +5,28 @@ import (
 )
 
 func Add(as ...Tensor) Tensor {
+	shape := elementWise(as...)
 	return &AddTensor{
-		baseTensor: base(elementWise(as...), as...),
+		baseTensor: base(shape, as...),
 		as:         as,
+		value2:     calc.Zeros(shape...),
 	}
 }
 
 type AddTensor struct {
 	baseTensor
-	as []Tensor
+	as     []Tensor
+	value2 calc.NDArray
 }
 
 func (t *AddTensor) Visit(v TensorVisitor) { v.VisitAdd(t) }
 
 func (e *evaluationVisitor) VisitAdd(t *AddTensor) {
-	v := calc.Zeros(t.Shape()...)
+	v, v2 := t.value, t.value2
+	v.Fill(0.0)
 	for _, a := range t.as {
-		v = v.Add(e.value(a))
+		v2 = v.Add(e.value(a))
+		v, v2 = v2, v
 	}
 	e.values[t.ID()] = v
 }
@@ -39,23 +44,28 @@ func Sub(a Tensor, b Tensor) Tensor {
 }
 
 func Mul(as ...Tensor) Tensor {
+	shape := elementWise(as...)
 	return &MulTensor{
-		baseTensor: base(elementWise(as...), as...),
+		baseTensor: base(shape, as...),
 		as:         as,
+		value2:     calc.Zeros(shape...),
 	}
 }
 
 type MulTensor struct {
 	baseTensor
-	as []Tensor
+	as     []Tensor
+	value2 calc.NDArray
 }
 
 func (t *MulTensor) Visit(v TensorVisitor) { v.VisitMul(t) }
 
 func (e *evaluationVisitor) VisitMul(t *MulTensor) {
-	v := calc.Ones(t.Shape()...)
+	v, v2 := t.value, t.value2
+	v.Fill(1.0)
 	for _, a := range t.as {
-		v = v.Mul(e.value(a))
+		v2 = v.MulInto(e.value(a), v2)
+		v, v2 = v2, v
 	}
 	e.values[t.ID()] = v
 }
@@ -167,7 +177,7 @@ func (e *evaluationVisitor) VisitMatMul(t *MatMulTensor) {
 	a := e.value(t.a)
 	b := e.value(t.b)
 
-	e.values[t.ID()] = a.MatMul(b, t.a1, t.a2)
+	e.values[t.ID()] = a.MatMulInto(b, t.a1, t.a2, t.value)
 }
 
 func (g *gradientVisitor) VisitMatMul(t *MatMulTensor) {

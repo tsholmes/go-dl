@@ -1,5 +1,7 @@
 package tensor
 
+import "github.com/tsholmes/go-dl/calc"
+
 type Tensor interface {
 	ID() int64
 	Shape() []int
@@ -38,6 +40,8 @@ type baseTensor struct {
 	id     int64
 	shape  []int
 	inputs []Tensor
+
+	value calc.NDArray
 }
 
 func (b *baseTensor) ID() int64 {
@@ -60,5 +64,6 @@ func base(shape []int, inputs ...Tensor) baseTensor {
 		id:     id,
 		shape:  shape,
 		inputs: inputs,
+		value:  calc.Zeros(shape...),
 	}
 }

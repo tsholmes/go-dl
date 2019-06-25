@@ -115,6 +115,9 @@ func FromRaw(shape []int, data []float64) NDArray {
 type NDArray struct {
 	shape []int
 	data  []float64
+
+	// cached offsets for dataIndex*
+	broadcastSizes []int
 }
 
 func (a NDArray) dataIndex(index []int) int {
@@ -129,17 +132,21 @@ func (a NDArray) dataIndex(index []int) int {
 	return dataIndex
 }
 
-func (a NDArray) dataIndexBroadcast(index []int) int {
+func (a *NDArray) dataIndexBroadcast(index []int) int {
+	if len(a.broadcastSizes) == 0 {
+		a.broadcastSizes = make([]int, len(a.shape))
+		innerSize := 1
+		for i := len(index) - 1; i >= 0; i-- {
+			if a.shape[i] != 1 {
+				a.broadcastSizes[i] = innerSize
+			}
+			innerSize *= a.shape[i]
+		}
+	}
 	dataIndex := 0
-	innerSize := 1
 
 	for i := len(index) - 1; i >= 0; i-- {
-		idx := index[i]
-		if a.shape[i] == 1 {
-			idx = 0
-		}
-		dataIndex += innerSize * idx
-		innerSize *= a.shape[i]
+		dataIndex += a.broadcastSizes[i] * index[i]
 	}
 
 	return dataIndex
@@ -165,6 +172,12 @@ func (a NDArray) Get(index []int) float64 {
 
 func (a NDArray) Set(index []int, value float64) {
 	a.data[a.dataIndex(index)] = value
+}
+
+func (a NDArray) Fill(value float64) {
+	for i := range a.data {
+		a.data[i] = value
+	}
 }
 
 func (a NDArray) SetSlice(b NDArray, axis int, offset int) {
@@ -238,8 +251,12 @@ func (a NDArray) nextIndex(index []int) {
 func (a NDArray) Add(b NDArray) NDArray {
 	// TODO: assert size valid
 	newShape := BroadcastShape(a.shape, b.shape)
-
 	c := Zeros(newShape...)
+	return a.AddInto(b, c)
+}
+
+func (a NDArray) AddInto(b NDArray, c NDArray) NDArray {
+	// TODO: assert size valid
 	c.ForEach(func(dataIndex int, index []int, value float64) {
 		aVal := a.data[a.dataIndexBroadcast(index)]
 		bVal := b.data[b.dataIndexBroadcast(index)]
@@ -260,8 +277,12 @@ func (a NDArray) MulConstant(b float64) NDArray {
 func (a NDArray) Mul(b NDArray) NDArray {
 	// TODO: assert size valid
 	newShape := BroadcastShape(a.shape, b.shape)
-
 	c := Zeros(newShape...)
+	return a.MulInto(b, c)
+}
+
+func (a NDArray) MulInto(b NDArray, c NDArray) NDArray {
+	// TODO: assert size valid
 	c.ForEach(func(dataIndex int, index []int, value float64) {
 		aVal := a.data[a.dataIndexBroadcast(index)]
 		bVal := b.data[b.dataIndexBroadcast(index)]
@@ -432,6 +453,12 @@ func (a NDArray) Equal(b NDArray) NDArray {
 
 func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 	arr := Zeros(MatMulShape(a.shape, b.shape, a1, a2)...)
+	return a.MatMulInto(b, a1, a2, arr)
+}
+
+func (a NDArray) MatMulInto(b NDArray, a1 int, a2 int, arr NDArray) NDArray {
+	// We rely on the data being zeros
+	arr.Fill(0.)
 
 	aOff := 1
 	bOff := 1
@@ -442,17 +469,13 @@ func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 		bOff *= b.shape[i]
 	}
 
-	var aIndex []int
-	var bIndex []int
-
 	arr.ForEach(func(dataIndex int, index []int, value float64) {
-		aIndex = append(aIndex[:0], index...)
-		bIndex = append(bIndex[:0], index...)
+		ia2 := index[a2]
 
-		aIndex[a2], bIndex[a1] = 0, 0
-
-		aDIndex := a.dataIndexBroadcast(aIndex)
-		bDIndex := b.dataIndexBroadcast(bIndex)
+		index[a2] = 0
+		aDIndex := a.dataIndexBroadcast(index)
+		index[a1], index[a2] = 0, ia2
+		bDIndex := b.dataIndexBroadcast(index)
 
 		for j := 0; j < a.shape[a2]; j++ {
 			arr.data[dataIndex] += a.data[aDIndex] * b.data[bDIndex]
