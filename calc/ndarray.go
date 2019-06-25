@@ -120,6 +120,18 @@ func FromRaw(shape []int, data []float64) NDArray {
 	}
 }
 
+func ShapeEqual(s1 []int, s2 []int) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i := range s1 {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type NDArray struct {
 	shape []int
 	data  []float64
@@ -291,9 +303,15 @@ func (a NDArray) Mul(b NDArray) NDArray {
 
 func (a NDArray) MulInto(b NDArray, c NDArray) NDArray {
 	// TODO: assert size valid
+	broadcast := !ShapeEqual(a.Shape(), b.Shape())
 	c.ForEach(func(dataIndex int, index []int, value float64) {
-		aVal := a.data[a.dataIndexBroadcast(index)]
-		bVal := b.data[b.dataIndexBroadcast(index)]
+		aIndex, bIndex := dataIndex, dataIndex
+		if broadcast {
+			aIndex = a.dataIndexBroadcast(index)
+			bIndex = b.dataIndexBroadcast(index)
+		}
+		aVal := a.data[aIndex]
+		bVal := b.data[bIndex]
 		c.data[dataIndex] = aVal * bVal
 	})
 	return c
@@ -580,11 +598,15 @@ func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 		iDataIndex := a.dataIndex(index)
 
 		for h := 0; h < kh; h++ {
+			ai1 := iDataIndex + h*iHOff
+			ki1 := h*kHOff + fIndex*kFOff
 			for w := 0; w < kw; w++ {
+				ai2 := ai1 + w*iWOff
+				ki2 := ki1 + w*kWOff
 				for f := 0; f < inf; f++ {
-					arr.data[dataIndex] +=
-						a.data[iDataIndex+h*iHOff+w*iWOff+f*iFOff] *
-							k.data[h*kHOff+w*kWOff+f*kIFOff+fIndex*kFOff]
+					ai := ai2 + f*iFOff
+					ki := ki2 + f*kIFOff
+					arr.data[dataIndex] += a.data[ai] * k.data[ki]
 				}
 			}
 		}
