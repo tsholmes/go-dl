@@ -577,8 +577,16 @@ func (a NDArray) Reverse(axes ...int) NDArray {
 
 func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 	kShape := k.Shape()
-	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
+	kh, kw, kf := kShape[0], kShape[1], kShape[3]
 	arr := Zeros(Conv2DShape(a.Shape(), hAxis, wAxis, fAxis, kh, kw, kf)...)
+	return a.Conv2DInto(k, hAxis, wAxis, fAxis, arr)
+}
+
+func (a NDArray) Conv2DInto(k NDArray, hAxis int, wAxis int, fAxis int, arr NDArray) NDArray {
+	kShape := k.Shape()
+	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
+
+	arr.Fill(0.)
 
 	var iHOff, iWOff, iFOff int
 	iSize := 1
@@ -603,18 +611,24 @@ func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 		index[fAxis] = 0
 		iDataIndex := a.dataIndex(index)
 
+		ai1 := iDataIndex
+		ki1 := fIndex * kFOff
 		for h := 0; h < kh; h++ {
-			ai1 := iDataIndex + h*iHOff
-			ki1 := h*kHOff + fIndex*kFOff
+			ai2 := ai1
+			ki2 := ki1
 			for w := 0; w < kw; w++ {
-				ai2 := ai1 + w*iWOff
-				ki2 := ki1 + w*kWOff
+				ai := ai2
+				ki := ki2
 				for f := 0; f < inf; f++ {
-					ai := ai2 + f*iFOff
-					ki := ki2 + f*kIFOff
 					arr.data[dataIndex] += a.data[ai] * k.data[ki]
+					ai += iFOff
+					ki += kIFOff
 				}
+				ai2 += iWOff
+				ki2 += kWOff
 			}
+			ai1 += iHOff
+			ki1 += kHOff
 		}
 	})
 	return arr
@@ -622,8 +636,14 @@ func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 
 func (a NDArray) InverseConv2D(g NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 	kShape := InverseConv2DShape(a.shape, g.shape, hAxis, wAxis, fAxis)
-	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
 	arr := Zeros(kShape...)
+	return a.InverseConv2DInto(g, hAxis, wAxis, fAxis, arr)
+}
+
+func (a NDArray) InverseConv2DInto(g NDArray, hAxis int, wAxis int, fAxis int, arr NDArray) NDArray {
+	kShape := arr.Shape()
+	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
+	arr.Fill(0.)
 
 	var iHOff, iWOff, iFOff int
 	iSize := 1
@@ -648,18 +668,24 @@ func (a NDArray) InverseConv2D(g NDArray, hAxis int, wAxis int, fAxis int) NDArr
 		index[fAxis] = 0
 		iDataIndex := a.dataIndex(index)
 
+		ai1 := iDataIndex
+		ki1 := fIndex * kFOff
 		for h := 0; h < kh; h++ {
-			ai1 := iDataIndex + h*iHOff
-			ki1 := h*kHOff + fIndex*kFOff
+			ai2 := ai1
+			ki2 := ki1
 			for w := 0; w < kw; w++ {
-				ai2 := ai1 + w*iWOff
-				ki2 := ki1 + w*kWOff
+				ai := ai2
+				ki := ki2
 				for f := 0; f < inf; f++ {
-					ai := ai2 + f*iFOff
-					ki := ki2 + f*kIFOff
 					arr.data[ki] += a.data[ai] * value
+					ai += iFOff
+					ki += kIFOff
 				}
+				ai2 += iWOff
+				ki2 += kWOff
 			}
+			ai1 += h * iHOff
+			ki1 += h * kHOff
 		}
 	})
 

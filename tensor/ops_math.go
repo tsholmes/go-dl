@@ -243,7 +243,7 @@ func (g *gradientVisitor) VisitExp(t *ExpTensor) {
 func Conv2D(t Tensor, k Tensor, hAxis int, wAxis int, fAxis int) Tensor {
 	kh, kw := k.Shape()[0], k.Shape()[1]
 	return &Conv2DTensor{
-		baseTensor: base(conv2d(t, k, hAxis, wAxis, fAxis), 0, t, k),
+		baseTensor: base(conv2d(t, k, hAxis, wAxis, fAxis), 1, t, k),
 		t:          t,
 		k:          k,
 		hAxis:      hAxis,
@@ -271,7 +271,7 @@ func (e *evaluationVisitor) VisitConv2D(t *Conv2DTensor) {
 	i := e.value(t.t)
 	k := e.value(t.k)
 
-	v := i.Conv2D(k, t.hAxis, t.wAxis, t.fAxis)
+	v := i.Conv2DInto(k, t.hAxis, t.wAxis, t.fAxis, t.values[0])
 
 	e.values[t.ID()] = v
 }
@@ -292,7 +292,7 @@ func (g *gradientVisitor) VisitConv2D(t *Conv2DTensor) {
 
 func InverseConv2D(t Tensor, g Tensor, hAxis int, wAxis int, fAxis int) Tensor {
 	return &InverseConv2DTensor{
-		baseTensor: base(inverseConv2d(t, g, hAxis, wAxis, fAxis), 0, t, g),
+		baseTensor: base(inverseConv2d(t, g, hAxis, wAxis, fAxis), 1, t, g),
 		t:          t,
 		g:          g,
 		hAxis:      hAxis,
@@ -316,7 +316,7 @@ func (e *evaluationVisitor) VisitInverseConv2D(t *InverseConv2DTensor) {
 	i := e.value(t.t)
 	g := e.value(t.g)
 
-	v := i.InverseConv2D(g, t.hAxis, t.wAxis, t.fAxis)
+	v := i.InverseConv2DInto(g, t.hAxis, t.wAxis, t.fAxis, t.values[0])
 
 	e.values[t.ID()] = v
 }
