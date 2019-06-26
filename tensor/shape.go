@@ -60,3 +60,12 @@ func shapeEq(s1 []int, s2 []int) bool {
 	}
 	return true
 }
+
+func shapeLt(s1 []int, s2 []int) bool {
+	for i := range s1 {
+		if s1[i] < s2[i] {
+			return true
+		}
+	}
+	return false
+}

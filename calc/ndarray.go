@@ -283,11 +283,17 @@ func (a NDArray) Add(b NDArray) NDArray {
 
 func (a NDArray) AddInto(b NDArray, c NDArray) NDArray {
 	// TODO: assert size valid
-	c.ForEach(func(dataIndex int, index []int, value float64) {
-		aVal := a.data[a.dataIndexBroadcast(index)]
-		bVal := b.data[b.dataIndexBroadcast(index)]
-		c.data[dataIndex] = aVal + bVal
-	})
+	if ShapeEqual(a.shape, b.shape) {
+		for i := range c.data {
+			c.data[i] = a.data[i] + b.data[i]
+		}
+	} else {
+		c.ForEach(func(dataIndex int, index []int, value float64) {
+			aVal := a.data[a.dataIndexBroadcast(index)]
+			bVal := b.data[b.dataIndexBroadcast(index)]
+			c.data[dataIndex] = aVal + bVal
+		})
+	}
 	return c
 }
 
@@ -447,11 +453,30 @@ func (a NDArray) Mean(axes ...int) NDArray {
 
 func (a NDArray) Max(axes ...int) NDArray {
 	arr := Constant(math.Inf(-1), AggrShape(a.shape, axes)...)
-	a.ForEach(func(dataIndex int, index []int, value float64) {
-		idx := arr.dataIndexBroadcast(index)
-		if value > arr.data[idx] {
-			arr.data[idx] = value
+	size := 1
+	off := make([]int, len(a.shape))
+	for i := len(a.shape) - 1; i >= 0; i-- {
+		off[i] = size
+		size *= a.shape[i]
+	}
+	var aggr func(int, int, int)
+	aggr = func(ii int, di int, adi int) {
+		if ii == len(axes) {
+			if a.data[di] > arr.data[adi] {
+				arr.data[adi] = a.data[di]
+			}
+		} else {
+			ax := axes[ii]
+			sz := off[ax]
+			for i := 0; i < a.shape[ax]; i++ {
+				aggr(ii+1, di, adi)
+				di += sz
+			}
 		}
+	}
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		di := a.dataIndex(index)
+		aggr(0, di, dataIndex)
 	})
 
 	return arr

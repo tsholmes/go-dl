@@ -40,7 +40,7 @@ func (g *gradientVisitor) collect(tensor Tensor) Tensor {
 	partials := g.partialGradients[tensor.ID()]
 	for i, p := range partials {
 		// Broadcast up if sizes aren't equal
-		if !shapeEq(p.Shape(), tensor.Shape()) {
+		if shapeLt(p.Shape(), tensor.Shape()) {
 			p = Mul(p, Ones(tensor.Shape()...))
 		}
 		// Sum down if sizes still aren't equal
