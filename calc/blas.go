@@ -38,22 +38,20 @@ func blasConv2D(a NDArray, k NDArray, arr NDArray) {
 				}
 
 				for h := 0; h < kh; h++ {
-					for w := 0; w < kw; w++ {
-						pIndex := iDataIndex + h*iHOff + w*iWOff
-						kIndex := h*kHOff + w*kWOff
-						x := blas64.Vector{
-							N:    inf,
-							Data: a.data[pIndex : pIndex+inf],
-							Inc:  1,
-						}
-						a := blas64.General{
-							Rows:   inf,
-							Cols:   kf,
-							Data:   k.data[kIndex : kIndex+inf*kf],
-							Stride: kf,
-						}
-						blas64.Gemv(blas.Trans, 1.0, a, x, 1.0, y)
+					pIndex := iDataIndex + h*iHOff
+					kIndex := h * kHOff
+					x := blas64.Vector{
+						N:    inf * kw,
+						Data: a.data[pIndex : pIndex+inf*kw],
+						Inc:  1,
 					}
+					a := blas64.General{
+						Rows:   inf * kw,
+						Cols:   kf,
+						Data:   k.data[kIndex : kIndex+inf*kf*kw],
+						Stride: kf,
+					}
+					blas64.Gemv(blas.Trans, 1.0, a, x, 1.0, y)
 				}
 			}
 		}
