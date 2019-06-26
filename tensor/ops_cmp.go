@@ -128,9 +128,10 @@ func (g *gradientVisitor) VisitReLU(t *ReLUTensor) {
 
 // Zeroes out all values in t where the corresponding value in m is negative
 func ReLUMask(t Tensor, m Tensor) Tensor {
-	return &ReLUTensor{
+	return &ReLUMaskTensor{
 		baseTensor: base(t.Shape(), 0, t, m),
 		t:          t,
+		m:          m,
 	}
 }
 
