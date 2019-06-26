@@ -12,43 +12,53 @@ func blasConv2D(a NDArray, k NDArray, arr NDArray) {
 
 	iWOff := a.shape[adim-1]
 	iHOff := iWOff * a.shape[adim-2]
+	iBOff := iHOff * a.shape[adim-3]
+
+	aWOff := arr.shape[adim-1]
+	aHOff := aWOff * arr.shape[adim-2]
+	aBOff := aHOff * arr.shape[adim-3]
 
 	kFOff := 1
 	kIFOff := kFOff * kf
 	kWOff := kIFOff * inf
 	kHOff := kWOff * kw
 
-	arr.ForEach(func(dataIndex int, index []int, value float64) {
-		if index[adim-1] != 0 {
-			return
-		}
-		iDataIndex := a.dataIndex(index)
+	// loop over batches
+	iBIndex := 0
+	for aBIndex := 0; aBIndex < len(arr.data); aBIndex += aBOff {
+		for r := 0; r < arr.shape[adim-3]; r++ {
+			for c := 0; c < arr.shape[adim-2]; c++ {
+				dataIndex := aBIndex + r*aHOff + c*aWOff
+				iDataIndex := iBIndex + r*iHOff + c*iWOff
 
-		y := blas64.Vector{
-			N:    kf,
-			Data: arr.data[dataIndex : dataIndex+kf],
-			Inc:  1,
-		}
-
-		for h := 0; h < kh; h++ {
-			for w := 0; w < kw; w++ {
-				pIndex := iDataIndex + h*iHOff + w*iWOff
-				kIndex := h*kHOff + w*kWOff
-				x := blas64.Vector{
-					N:    inf,
-					Data: a.data[pIndex : pIndex+inf],
+				y := blas64.Vector{
+					N:    kf,
+					Data: arr.data[dataIndex : dataIndex+kf],
 					Inc:  1,
 				}
-				a := blas64.General{
-					Rows:   inf,
-					Cols:   kf,
-					Data:   k.data[kIndex : kIndex+inf*kf],
-					Stride: kf,
+
+				for h := 0; h < kh; h++ {
+					for w := 0; w < kw; w++ {
+						pIndex := iDataIndex + h*iHOff + w*iWOff
+						kIndex := h*kHOff + w*kWOff
+						x := blas64.Vector{
+							N:    inf,
+							Data: a.data[pIndex : pIndex+inf],
+							Inc:  1,
+						}
+						a := blas64.General{
+							Rows:   inf,
+							Cols:   kf,
+							Data:   k.data[kIndex : kIndex+inf*kf],
+							Stride: kf,
+						}
+						blas64.Gemv(blas.Trans, 1.0, a, x, 1.0, y)
+					}
 				}
-				blas64.Gemv(blas.Trans, 1.0, a, x, 1.0, y)
 			}
 		}
-	})
+		iBIndex += iBOff
+	}
 }
 
 func blasInverseConv2D(a NDArray, g NDArray, arr NDArray) {
