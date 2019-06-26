@@ -653,6 +653,12 @@ func (a NDArray) InverseConv2DInto(g NDArray, hAxis int, wAxis int, fAxis int, a
 	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
 	arr.Fill(0.)
 
+	adim := len(a.shape)
+	if fAxis == adim-1 && wAxis == adim-2 && hAxis == adim-3 {
+		blasInverseConv2D(a, g, arr)
+		return arr
+	}
+
 	var iHOff, iWOff, iFOff int
 	iSize := 1
 	for i := len(a.shape) - 1; i >= 0; i-- {
