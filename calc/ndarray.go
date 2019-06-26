@@ -705,3 +705,38 @@ func (a NDArray) InverseConv2DInto(g NDArray, hAxis int, wAxis int, fAxis int, a
 
 	return arr
 }
+
+func (a NDArray) ReLU() NDArray {
+	arr := Zeros(a.shape...)
+
+	for i, v := range a.data {
+		if v > 0. {
+			arr.data[i] = v
+		}
+	}
+
+	return arr
+}
+
+func (a NDArray) ReLUMask(m NDArray) NDArray {
+	arr := Zeros(BroadcastShape(a.shape, m.shape)...)
+
+	if ShapeEqual(a.shape, m.shape) {
+		for i := range arr.data {
+			if m.data[i] > 0 {
+				arr.data[i] = a.data[i]
+			}
+		}
+	} else {
+		arr.ForEach(func(dataIndex int, index []int, value float64) {
+			aIndex := a.dataIndexBroadcast(index)
+			mIndex := m.dataIndexBroadcast(index)
+
+			if m.data[mIndex] > 0 {
+				arr.data[dataIndex] = a.data[aIndex]
+			}
+		})
+	}
+
+	return arr
+}

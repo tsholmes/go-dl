@@ -1,7 +1,5 @@
 package tensor
 
-import "github.com/tsholmes/go-dl/calc"
-
 func Abs(t Tensor) Tensor {
 	return &AbsTensor{
 		baseTensor: base(t.Shape(), 0, t),
@@ -119,12 +117,38 @@ func (t *ReLUTensor) Visit(v TensorVisitor) { v.VisitReLU(t) }
 
 func (e *evaluationVisitor) VisitReLU(t *ReLUTensor) {
 	v := e.value(t.t)
-	g := v.Greater(calc.Zeros(v.Shape()...))
-	e.values[t.ID()] = v.Mul(g)
+	e.values[t.ID()] = v.ReLU()
 }
 
 func (g *gradientVisitor) VisitReLU(t *ReLUTensor) {
 	delta := g.collect(t)
 
-	g.push(t.t, Mul(delta, Greater(t.t, Constant(calc.Zeros(t.Shape()...)))))
+	g.push(t.t, ReLUMask(delta, t.t))
+}
+
+// Zeroes out all values in t where the corresponding value in m is negative
+func ReLUMask(t Tensor, m Tensor) Tensor {
+	return &ReLUTensor{
+		baseTensor: base(t.Shape(), 0, t, m),
+		t:          t,
+	}
+}
+
+type ReLUMaskTensor struct {
+	baseTensor
+	t Tensor
+	m Tensor
+}
+
+func (t *ReLUMaskTensor) Visit(v TensorVisitor) { v.VisitReLUMask(t) }
+
+func (e *evaluationVisitor) VisitReLUMask(t *ReLUMaskTensor) {
+	v := e.value(t.t)
+	mv := e.value(t.m)
+	e.values[t.ID()] = v.ReLUMask(mv)
+}
+
+func (g *gradientVisitor) VisitReLUMask(t *ReLUMaskTensor) {
+	// i mean the gradient to t.t is trivial, but its not needed
+	panic("ReLUMask is not differentiable")
 }
