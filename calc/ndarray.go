@@ -309,17 +309,19 @@ func (a NDArray) Mul(b NDArray) NDArray {
 
 func (a NDArray) MulInto(b NDArray, c NDArray) NDArray {
 	// TODO: assert size valid
-	broadcast := !ShapeEqual(a.Shape(), b.Shape())
-	c.ForEach(func(dataIndex int, index []int, value float64) {
-		aIndex, bIndex := dataIndex, dataIndex
-		if broadcast {
-			aIndex = a.dataIndexBroadcast(index)
-			bIndex = b.dataIndexBroadcast(index)
+	if ShapeEqual(a.Shape(), b.Shape()) {
+		for i := range c.data {
+			c.data[i] = a.data[i] * b.data[i]
 		}
-		aVal := a.data[aIndex]
-		bVal := b.data[bIndex]
-		c.data[dataIndex] = aVal * bVal
-	})
+	} else {
+		c.ForEach(func(dataIndex int, index []int, value float64) {
+			aIndex := a.dataIndexBroadcast(index)
+			bIndex := b.dataIndexBroadcast(index)
+			aVal := a.data[aIndex]
+			bVal := b.data[bIndex]
+			c.data[dataIndex] = aVal * bVal
+		})
+	}
 	return c
 }
 
@@ -587,6 +589,12 @@ func (a NDArray) Conv2DInto(k NDArray, hAxis int, wAxis int, fAxis int, arr NDAr
 	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
 
 	arr.Fill(0.)
+
+	adim := len(a.shape)
+	if fAxis == adim-1 && wAxis == adim-2 && hAxis == adim-3 {
+		blasConv2D(a, k, arr)
+		return arr
+	}
 
 	var iHOff, iWOff, iFOff int
 	iSize := 1
