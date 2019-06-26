@@ -60,7 +60,7 @@ func main() {
 	// m.L2(0.01)
 
 	const epochs = 10
-	const lr = 1e-3
+	const lr = 2e-3
 
 	index := make([]int, len(X))
 	for i := range index {

@@ -279,10 +279,48 @@ func (e *evaluationVisitor) VisitConv2D(t *Conv2DTensor) {
 func (g *gradientVisitor) VisitConv2D(t *Conv2DTensor) {
 	delta := g.collect(t)
 
+	kGrad := InverseConv2D(t.t, delta, t.hAxis, t.wAxis, t.fAxis)
+
 	delta = Unslice(delta, t.hAxis, t.Shape()[t.hAxis]+t.padH*2, t.padH)
 	delta = Unslice(delta, t.wAxis, t.Shape()[t.wAxis]+t.padW*2, t.padW)
 
-	out := Conv2D(delta, Transpose(Reverse(t.k, 0, 1), 2, 3), t.hAxis, t.wAxis, t.fAxis)
+	tGrad := Conv2D(delta, Transpose(Reverse(t.k, 0, 1), 2, 3), t.hAxis, t.wAxis, t.fAxis)
 
-	g.push(t.t, out)
+	g.push(t.t, tGrad)
+	g.push(t.k, kGrad)
+}
+
+func InverseConv2D(t Tensor, g Tensor, hAxis int, wAxis int, fAxis int) Tensor {
+	return &InverseConv2DTensor{
+		baseTensor: base(inverseConv2d(t, g, hAxis, wAxis, fAxis), 0, t, g),
+		t:          t,
+		g:          g,
+		hAxis:      hAxis,
+		wAxis:      wAxis,
+		fAxis:      fAxis,
+	}
+}
+
+type InverseConv2DTensor struct {
+	baseTensor
+	t     Tensor
+	g     Tensor
+	hAxis int
+	wAxis int
+	fAxis int
+}
+
+func (t *InverseConv2DTensor) Visit(v TensorVisitor) { v.VisitInverseConv2D(t) }
+
+func (e *evaluationVisitor) VisitInverseConv2D(t *InverseConv2DTensor) {
+	i := e.value(t.t)
+	g := e.value(t.g)
+
+	v := i.InverseConv2D(g, t.hAxis, t.wAxis, t.fAxis)
+
+	e.values[t.ID()] = v
+}
+
+func (g *gradientVisitor) VisitInverseConv2D(t *InverseConv2DTensor) {
+	panic("InverseConv2D is not differentiable")
 }

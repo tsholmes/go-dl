@@ -23,6 +23,7 @@ type TensorVisitor interface {
 	VisitLog(t *LogTensor)
 	VisitExp(t *ExpTensor)
 	VisitConv2D(t *Conv2DTensor)
+	VisitInverseConv2D(t *InverseConv2DTensor)
 	VisitConcat(t *ConcatTensor)
 	VisitSlice(t *SliceTensor)
 	VisitUnslice(t *UnsliceTensor)

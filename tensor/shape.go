@@ -48,6 +48,10 @@ func conv2d(a Tensor, k Tensor, hAxis int, wAxis int, fAxis int) []int {
 	return calc.Conv2DShape(a.Shape(), hAxis, wAxis, fAxis, kh, kw, kf)
 }
 
+func inverseConv2d(a Tensor, g Tensor, hAxis int, wAxis int, fAxis int) []int {
+	return calc.InverseConv2DShape(a.Shape(), g.Shape(), hAxis, wAxis, fAxis)
+}
+
 func shapeEq(s1 []int, s2 []int) bool {
 	for i := range s1 {
 		if s1[i] != s2[i] {

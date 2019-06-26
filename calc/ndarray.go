@@ -112,6 +112,12 @@ func Conv2DShape(shape []int, hAxis int, wAxis int, fAxis int, kernelH int, kern
 	return outShape
 }
 
+func InverseConv2DShape(shape []int, kShape []int, hAxis int, wAxis int, fAxis int) []int {
+	kernelH := shape[hAxis] - kShape[hAxis] + 1
+	kernelW := shape[wAxis] - kShape[wAxis] + 1
+	return []int{kernelH, kernelW, shape[fAxis], kShape[fAxis]}
+}
+
 func FromRaw(shape []int, data []float64) NDArray {
 	// TODO: validate len(data) = prod(shape)
 	return NDArray{
@@ -611,5 +617,51 @@ func (a NDArray) Conv2D(k NDArray, hAxis int, wAxis int, fAxis int) NDArray {
 			}
 		}
 	})
+	return arr
+}
+
+func (a NDArray) InverseConv2D(g NDArray, hAxis int, wAxis int, fAxis int) NDArray {
+	kShape := InverseConv2DShape(a.shape, g.shape, hAxis, wAxis, fAxis)
+	kh, kw, inf, kf := kShape[0], kShape[1], kShape[2], kShape[3]
+	arr := Zeros(kShape...)
+
+	var iHOff, iWOff, iFOff int
+	iSize := 1
+	for i := len(a.shape) - 1; i >= 0; i-- {
+		if i == fAxis {
+			iFOff = iSize
+		} else if i == wAxis {
+			iWOff = iSize
+		} else if i == hAxis {
+			iHOff = iSize
+		}
+		iSize *= a.shape[i]
+	}
+
+	kFOff := 1
+	kIFOff := kFOff * kf
+	kWOff := kIFOff * inf
+	kHOff := kWOff * kw
+
+	g.ForEach(func(dataIndex int, index []int, value float64) {
+		fIndex := index[fAxis]
+		index[fAxis] = 0
+		iDataIndex := a.dataIndex(index)
+
+		for h := 0; h < kh; h++ {
+			ai1 := iDataIndex + h*iHOff
+			ki1 := h*kHOff + fIndex*kFOff
+			for w := 0; w < kw; w++ {
+				ai2 := ai1 + w*iWOff
+				ki2 := ki1 + w*kWOff
+				for f := 0; f < inf; f++ {
+					ai := ai2 + f*iFOff
+					ki := ki2 + f*kIFOff
+					arr.data[ki] += a.data[ai] * value
+				}
+			}
+		}
+	})
+
 	return arr
 }
