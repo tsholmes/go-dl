@@ -101,6 +101,36 @@ func (g *gradientVisitor) VisitEqual(t *EqualTensor) {
 	panic("Equal is not differentiable")
 }
 
+func EqualMask(t Tensor, a Tensor, b Tensor) Tensor {
+	return &EqualMaskTensor{
+		baseTensor: base(t.Shape(), 0, t, a, b),
+		t:          t,
+		a:          a,
+		b:          b,
+	}
+}
+
+type EqualMaskTensor struct {
+	baseTensor
+	t Tensor
+	a Tensor
+	b Tensor
+}
+
+func (t *EqualMaskTensor) Visit(v TensorVisitor) { v.VisitEqualMask(t) }
+
+func (e *evaluationVisitor) VisitEqualMask(t *EqualMaskTensor) {
+	v := e.value(t.t)
+	a := e.value(t.a)
+	b := e.value(t.b)
+	e.values[t.ID()] = v.EqualMask(a, b)
+}
+
+func (g *gradientVisitor) VisitEqualMask(t *EqualMaskTensor) {
+	// at least not until i feel like it
+	panic("EqualMask is not differentiable")
+}
+
 func ReLU(t Tensor) Tensor {
 	return &ReLUTensor{
 		baseTensor: base(t.Shape(), 0, t),

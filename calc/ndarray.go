@@ -485,6 +485,28 @@ func (a NDArray) Equal(b NDArray) NDArray {
 	return arr
 }
 
+func (a NDArray) EqualMask(e1 NDArray, e2 NDArray) NDArray {
+	arr := Zeros(a.shape...)
+
+	if ShapeEqual(a.shape, e1.shape) && ShapeEqual(a.shape, e2.shape) {
+		for i, v := range a.data {
+			if math.Abs(e1.data[i]-e2.data[i]) < Epsilon {
+				arr.data[i] = v
+			}
+		}
+	} else {
+		arr.ForEach(func(dataIndex int, index []int, value float64) {
+			v1 := e1.data[e1.dataIndexBroadcast(index)]
+			v2 := e2.data[e2.dataIndexBroadcast(index)]
+			if math.Abs(v1-v2) < Epsilon {
+				arr.data[dataIndex] = a.data[dataIndex]
+			}
+		})
+	}
+
+	return arr
+}
+
 func (a NDArray) MatMul(b NDArray, a1 int, a2 int) NDArray {
 	arr := Zeros(MatMulShape(a.shape, b.shape, a1, a2)...)
 	return a.MatMulInto(b, a1, a2, arr)

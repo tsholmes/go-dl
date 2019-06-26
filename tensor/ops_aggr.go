@@ -65,8 +65,5 @@ func (g *gradientVisitor) VisitMax(t *MaxTensor) {
 	delta := g.collect(t)
 
 	// Pass up gradients only for the elements that are equal to the max
-	g.push(t.t, Mul(
-		delta,
-		Equal(t, t.t),
-	))
+	g.push(t.t, EqualMask(delta, t, t.t))
 }

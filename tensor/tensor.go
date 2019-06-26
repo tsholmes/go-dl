@@ -36,6 +36,7 @@ type TensorVisitor interface {
 	VisitEqual(t *EqualTensor)
 	VisitReLU(t *ReLUTensor)
 	VisitReLUMask(t *ReLUMaskTensor)
+	VisitEqualMask(t *EqualMaskTensor)
 }
 
 var nextID int64
