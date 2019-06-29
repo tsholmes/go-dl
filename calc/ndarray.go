@@ -431,8 +431,28 @@ func (a NDArray) PowConstant(e float64) NDArray {
 
 func (a NDArray) Sum(axes ...int) NDArray {
 	arr := Zeros(AggrShape(a.shape, axes)...)
-	a.ForEach(func(dataIndex int, index []int, value float64) {
-		arr.data[arr.dataIndexBroadcast(index)] += value
+	size := 1
+	off := make([]int, len(a.shape))
+	for i := len(a.shape) - 1; i >= 0; i-- {
+		off[i] = size
+		size *= a.shape[i]
+	}
+	var aggr func(int, int, int)
+	aggr = func(ii int, di int, adi int) {
+		if ii == len(axes) {
+			arr.data[adi] += a.data[di]
+		} else {
+			ax := axes[ii]
+			sz := off[ax]
+			for i := 0; i < a.shape[ax]; i++ {
+				aggr(ii+1, di, adi)
+				di += sz
+			}
+		}
+	}
+	arr.ForEach(func(dataIndex int, index []int, value float64) {
+		di := a.dataIndex(index)
+		aggr(0, di, dataIndex)
 	})
 
 	return arr
