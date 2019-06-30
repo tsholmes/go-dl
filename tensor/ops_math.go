@@ -23,7 +23,7 @@ func (e *evaluationVisitor) VisitAdd(t *AddTensor) {
 	v, v2 := t.values[0], t.values[1]
 	v.Fill(0.0)
 	for _, a := range t.as {
-		v2 = v.Add(e.value(a))
+		v2 = v.AddInto(e.value(a), v2)
 		v, v2 = v2, v
 	}
 	e.values[t.ID()] = v

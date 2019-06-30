@@ -33,12 +33,16 @@ func walkBroadcast(aShape []int, bShape []int, outShape []int, f func(aIndex int
 			return
 		}
 
+		outInc := outSize[axis]
+		aInc := aSize[axis]
+		bInc := bSize[axis]
+
 		for i := 0; i < outShape[axis]; i++ {
 			walk(aIndex, bIndex, outIndex, axis+1)
 
-			outIndex += outSize[axis]
-			aIndex += aSize[axis]
-			bIndex += bSize[axis]
+			outIndex += outInc
+			aIndex += aInc
+			bIndex += bInc
 		}
 	}
 
