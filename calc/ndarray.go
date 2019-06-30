@@ -812,3 +812,95 @@ func (a NDArray) SliceRoot(start int, length int) NDArray {
 		shape: newShape,
 	}
 }
+
+func (a NDArray) Normalize(axis int) NDArray {
+	arr := Zeros(a.shape...)
+
+	aggrShape := make([]int, len(a.shape))
+	for i := range aggrShape {
+		if i == axis {
+			aggrShape[i] = a.shape[i]
+		} else {
+			aggrShape[i] = 1
+		}
+	}
+
+	size := a.shape[axis]
+	div := float64(1)
+	for i := range a.shape {
+		if i != axis {
+			div *= float64(a.shape[i])
+		}
+	}
+
+	mean := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		mean[outIndex] += a.data[inIndex] / div
+	})
+
+	stddev := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		v := a.data[inIndex] - mean[outIndex]
+		stddev[outIndex] += v * v
+	})
+	for i := range stddev {
+		stddev[i] = math.Sqrt(stddev[i] / div)
+	}
+
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		arr.data[inIndex] = (a.data[inIndex] - mean[outIndex]) / stddev[outIndex]
+	})
+
+	return arr
+}
+
+func (a NDArray) InverseNormalize(g NDArray, axis int) NDArray {
+	arr := Zeros(a.shape...)
+	aggrShape := make([]int, len(a.shape))
+	for i := range aggrShape {
+		if i == axis {
+			aggrShape[i] = a.shape[i]
+		} else {
+			aggrShape[i] = 1
+		}
+	}
+
+	size := a.shape[axis]
+	div := float64(1)
+	for i := range a.shape {
+		if i != axis {
+			div *= float64(a.shape[i])
+		}
+	}
+
+	mean := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		mean[outIndex] += a.data[inIndex] / div
+	})
+
+	stddev := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		v := a.data[inIndex] - mean[outIndex]
+		stddev[outIndex] += v * v
+	})
+	for i := range stddev {
+		stddev[i] = math.Sqrt(stddev[i] / div)
+	}
+
+	dVariance := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		s := stddev[outIndex]
+		dVariance[outIndex] += g.data[inIndex] * (a.data[inIndex] - mean[outIndex]) * -0.5 / (s * s * s)
+	})
+
+	dMean := make([]float64, size)
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		dMean[outIndex] += g.data[inIndex]*-1.0/stddev[outIndex] + dVariance[outIndex]*-2*(a.data[inIndex]-mean[outIndex])/div
+	})
+
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		arr.data[inIndex] = g.data[inIndex]/stddev[outIndex] + dVariance[outIndex]*2*(a.data[inIndex]-mean[outIndex])/div + dMean[outIndex]/div
+	})
+
+	return arr
+}

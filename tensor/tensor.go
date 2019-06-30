@@ -22,6 +22,8 @@ type TensorVisitor interface {
 	VisitMatMul(t *MatMulTensor)
 	VisitLog(t *LogTensor)
 	VisitExp(t *ExpTensor)
+	VisitNormalize(t *NormalizeTensor)
+	VisitInverseNormalize(t *InverseNormalizeTensor)
 	VisitConv2D(t *Conv2DTensor)
 	VisitInverseConv2D(t *InverseConv2DTensor)
 	VisitConcat(t *ConcatTensor)

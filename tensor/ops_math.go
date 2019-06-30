@@ -239,6 +239,61 @@ func (g *gradientVisitor) VisitExp(t *ExpTensor) {
 	))
 }
 
+func Normalize(t Tensor, axis int) Tensor {
+	return &NormalizeTensor{
+		baseTensor: base(t.Shape(), 0, t),
+		t:          t,
+		axis:       axis,
+	}
+}
+
+type NormalizeTensor struct {
+	baseTensor
+	t    Tensor
+	axis int
+}
+
+func (t *NormalizeTensor) Visit(v TensorVisitor) { v.VisitNormalize(t) }
+
+func (e *evaluationVisitor) VisitNormalize(t *NormalizeTensor) {
+	v := e.value(t.t)
+	e.values[t.ID()] = v.Normalize(t.axis)
+}
+
+func (g *gradientVisitor) VisitNormalize(t *NormalizeTensor) {
+	delta := g.collect(t)
+
+	g.push(t.t, InverseNormalize(t.t, delta, t.axis))
+}
+
+func InverseNormalize(t Tensor, g Tensor, axis int) Tensor {
+	return &InverseNormalizeTensor{
+		baseTensor: base(t.Shape(), 0, t, g),
+		t:          t,
+		g:          g,
+		axis:       axis,
+	}
+}
+
+type InverseNormalizeTensor struct {
+	baseTensor
+	t    Tensor
+	g    Tensor
+	axis int
+}
+
+func (t *InverseNormalizeTensor) Visit(v TensorVisitor) { v.VisitInverseNormalize(t) }
+
+func (e *evaluationVisitor) VisitInverseNormalize(t *InverseNormalizeTensor) {
+	v, g := e.value(t.t), e.value(t.g)
+	e.values[t.ID()] = v.InverseNormalize(g, t.axis)
+}
+
+func (g *gradientVisitor) VisitInverseNormalize(t *InverseNormalizeTensor) {
+	// Its possible, but this should never need to be
+	panic("InverseNormalize is not differentiable")
+}
+
 // k must be (h, w, tFilters, outFilters)
 func Conv2D(t Tensor, k Tensor, hAxis int, wAxis int, fAxis int) Tensor {
 	kh, kw := k.Shape()[0], k.Shape()[1]
