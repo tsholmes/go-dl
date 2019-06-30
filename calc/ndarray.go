@@ -296,10 +296,8 @@ func (a NDArray) AddInto(b NDArray, c NDArray) NDArray {
 			c.data[i] = a.data[i] + b.data[i]
 		}
 	} else {
-		c.ForEach(func(dataIndex int, index []int, value float64) {
-			aVal := a.data[a.dataIndexBroadcast(index)]
-			bVal := b.data[b.dataIndexBroadcast(index)]
-			c.data[dataIndex] = aVal + bVal
+		walkBroadcast(a.shape, b.shape, c.shape, func(aIndex int, bIndex int, outIndex int) {
+			c.data[outIndex] = a.data[aIndex] + b.data[bIndex]
 		})
 	}
 	return c
@@ -328,12 +326,8 @@ func (a NDArray) MulInto(b NDArray, c NDArray) NDArray {
 			c.data[i] = a.data[i] * b.data[i]
 		}
 	} else {
-		c.ForEach(func(dataIndex int, index []int, value float64) {
-			aIndex := a.dataIndexBroadcast(index)
-			bIndex := b.dataIndexBroadcast(index)
-			aVal := a.data[aIndex]
-			bVal := b.data[bIndex]
-			c.data[dataIndex] = aVal * bVal
+		walkBroadcast(a.shape, b.shape, c.shape, func(aIndex int, bIndex int, outIndex int) {
+			c.data[outIndex] = a.data[aIndex] * b.data[bIndex]
 		})
 	}
 	return c

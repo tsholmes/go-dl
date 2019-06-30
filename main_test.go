@@ -43,6 +43,7 @@ func BenchmarkModel(b *testing.B) {
 	batchSize := 10
 	l1Size := 16
 	l2Size := 32
+	l3Size := 64
 
 	x := tensor.Input(batchSize, 28, 28, 1)
 	y := tensor.Input(batchSize, 10)
@@ -51,13 +52,15 @@ func BenchmarkModel(b *testing.B) {
 
 	var t tensor.Tensor = tensor.Reshape(x, batchSize, 28, 28, 1)
 
-	t = model.MaxPooling2D(m, t, 2, 2)
-
 	t = model.Conv2D(m, t, 3, 3, l1Size)
 	t = tensor.ReLU(t)
 	t = model.MaxPooling2D(m, t, 2, 2)
 
 	t = model.Conv2D(m, t, 3, 3, l2Size)
+	t = tensor.ReLU(t)
+	t = model.MaxPooling2D(m, t, 2, 2)
+
+	t = model.Conv2D(m, t, 3, 3, l3Size)
 	t = tensor.ReLU(t)
 
 	t = tensor.Flatten(t, 1)
