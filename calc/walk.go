@@ -1,6 +1,23 @@
 package calc
 
 func walkBroadcast(aShape []int, bShape []int, outShape []int, f func(aIndex int, bIndex int, outIndex int)) {
+	asz, bsz := 1, 1
+	for i := range aShape {
+		asz *= aShape[i]
+		bsz *= bShape[i]
+	}
+	if canFastBroadcast(aShape, bShape) {
+		fastWalkAggr(asz, bsz, func(inIndex int, outIndex int) {
+			f(inIndex, outIndex, inIndex)
+		})
+		return
+	} else if canFastBroadcast(bShape, aShape) {
+		fastWalkAggr(bsz, asz, func(inIndex int, outIndex int) {
+			f(outIndex, inIndex, inIndex)
+		})
+		return
+	}
+
 	aSize := make([]int, len(aShape))
 	bSize := make([]int, len(aShape))
 	outSize := make([]int, len(aShape))
@@ -146,4 +163,17 @@ func fastWalkAggr(inSize int, outSize int, f func(inIndex int, outIndex int)) {
 			f(inIndex+outIndex, outIndex)
 		}
 	}
+}
+
+func canFastBroadcast(aShape []int, bShape []int) bool {
+	lastAxis := len(aShape) - 1
+	if aShape[lastAxis] != bShape[lastAxis] {
+		return false
+	}
+	for i := lastAxis - 1; i >= 0; i-- {
+		if bShape[i] > 1 {
+			return false
+		}
+	}
+	return true
 }
