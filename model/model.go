@@ -115,6 +115,10 @@ func (m *Model) Train(X calc.NDArray, Y calc.NDArray) (float64, []float64) {
 	return loss.Mean(allAxes...).Get(make([]int, len(loss.Shape()))), mvals
 }
 
+func (m *Model) DebugTrain() {
+	m.trainEval.DebugDump()
+}
+
 func (m *Model) Test(X calc.NDArray, Y calc.NDArray) (float64, []float64) {
 	provisions := append([]tensor.ProvidedInput{
 		tensor.Provide(m.input, X),

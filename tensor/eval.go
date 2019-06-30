@@ -2,15 +2,20 @@ package tensor
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
+	"time"
 
 	"github.com/tsholmes/go-dl/calc"
 )
 
 func MakeEvaluation(outputs ...Tensor) Evaluation {
 	evaluations := CollectForward(outputs)
+	timings := make([]time.Duration, len(evaluations))
 	return Evaluation{
 		outputs:     outputs,
 		evaluations: evaluations,
+		timings:     timings,
 	}
 }
 
@@ -19,6 +24,8 @@ type Evaluation struct {
 
 	// Topoligically sorted list of tensors to evalute
 	evaluations []Tensor
+
+	timings []time.Duration
 }
 
 type ProvidedInput struct {
@@ -36,8 +43,11 @@ func (e *Evaluation) Evaluate(provisions ...ProvidedInput) []calc.NDArray {
 		eval.values[p.t.ID()] = p.v
 	}
 
-	for _, t := range e.evaluations {
+	for i, t := range e.evaluations {
+		start := time.Now()
 		t.Visit(eval)
+		end := time.Now()
+		e.timings[i] += end.Sub(start)
 	}
 
 	outputs := make([]calc.NDArray, len(e.outputs))
@@ -45,6 +55,22 @@ func (e *Evaluation) Evaluate(provisions ...ProvidedInput) []calc.NDArray {
 		outputs[i] = eval.value(output)
 	}
 	return outputs
+}
+
+func (e *Evaluation) DebugDump() {
+	for i := range e.evaluations {
+		t, d := e.evaluations[i], e.timings[i]
+		fmt.Println(d, t.ID(), display(t))
+	}
+}
+
+func display(t Tensor) string {
+	typ := reflect.TypeOf(t).String()
+	var idStrs []string
+	for _, it := range t.Inputs() {
+		idStrs = append(idStrs, fmt.Sprintf("(%d %v)", it.ID(), it.Shape()))
+	}
+	return fmt.Sprintf("%s(%s)%v", typ, strings.Join(idStrs, ","), t.Shape())
 }
 
 var _ TensorVisitor = &evaluationVisitor{}

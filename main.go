@@ -88,6 +88,8 @@ func main() {
 			fmt.Printf("epoch %d/%d train batch %d/%d train loss %f train acc %f duration %s\n", epoch, epochs, i, trainBatches, workingLoss/float64(i+1), workingAcc/float64(i+1), end.Sub(start).String())
 		}
 
+		// m.DebugTrain()
+
 		workingLoss = 0.0
 		workingAcc = 0.0
 		for i := 0; i < testBatches; i++ {

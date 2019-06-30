@@ -50,6 +50,14 @@ func walkBroadcast(aShape []int, bShape []int, outShape []int, f func(aIndex int
 }
 
 func walkAggr(inShape []int, outShape []int, f func(inIndex int, outIndex int)) {
+	if canFastAggr(outShape) {
+		inSz := 1
+		for i := range inShape {
+			inSz *= inShape[i]
+		}
+		fastWalkAggr(inSz, outShape[len(outShape)-1], f)
+		return
+	}
 	inSize := make([]int, len(inShape))
 	outSize := make([]int, len(inShape))
 
@@ -121,4 +129,21 @@ func walkSlice(inShape []int, outShape []int, sliceAxis int, offset int, f func(
 	}
 
 	walk(0, 0, 0)
+}
+
+func canFastAggr(outShape []int) bool {
+	for i := len(outShape) - 2; i >= 0; i-- {
+		if outShape[i] > 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func fastWalkAggr(inSize int, outSize int, f func(inIndex int, outIndex int)) {
+	for inIndex := 0; inIndex < inSize; inIndex += outSize {
+		for outIndex := 0; outIndex < outSize; outIndex++ {
+			f(inIndex+outIndex, outIndex)
+		}
+	}
 }
