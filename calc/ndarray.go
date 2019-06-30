@@ -337,10 +337,8 @@ func (a NDArray) Div(b NDArray) NDArray {
 	newShape := BroadcastShape(a.shape, b.shape)
 
 	c := Zeros(newShape...)
-	c.ForEach(func(dataIndex int, index []int, value float64) {
-		aVal := a.data[a.dataIndexBroadcast(index)]
-		bVal := b.data[b.dataIndexBroadcast(index)]
-		c.data[dataIndex] = aVal / bVal
+	walkBroadcast(a.shape, b.shape, c.shape, func(aIndex int, bIndex int, outIndex int) {
+		c.data[outIndex] = a.data[aIndex] / b.data[bIndex]
 	})
 	return c
 }
@@ -422,39 +420,24 @@ func (a NDArray) Sign() NDArray {
 }
 
 func (a NDArray) PowConstant(e float64) NDArray {
+	f := func(v float64) float64 { return math.Pow(v, e) }
+	if e == 2.0 {
+		f = func(v float64) float64 { return v * v }
+	} else if e == 0.5 {
+		f = math.Sqrt
+	}
 	arr := Zeros(a.Shape()...)
 	for i := range arr.data {
-		arr.data[i] = math.Pow(a.data[i], e)
+		arr.data[i] = f(a.data[i])
 	}
 	return arr
 }
 
 func (a NDArray) Sum(axes ...int) NDArray {
 	arr := Zeros(AggrShape(a.shape, axes)...)
-	size := 1
-	off := make([]int, len(a.shape))
-	for i := len(a.shape) - 1; i >= 0; i-- {
-		off[i] = size
-		size *= a.shape[i]
-	}
-	var aggr func(int, int, int)
-	aggr = func(ii int, di int, adi int) {
-		if ii == len(axes) {
-			arr.data[adi] += a.data[di]
-		} else {
-			ax := axes[ii]
-			sz := off[ax]
-			for i := 0; i < a.shape[ax]; i++ {
-				aggr(ii+1, di, adi)
-				di += sz
-			}
-		}
-	}
-	arr.ForEach(func(dataIndex int, index []int, value float64) {
-		di := a.dataIndex(index)
-		aggr(0, di, dataIndex)
+	walkAggr(a.shape, arr.shape, func(inIndex int, outIndex int) {
+		arr.data[outIndex] += a.data[inIndex]
 	})
-
 	return arr
 }
 
@@ -464,39 +447,22 @@ func (a NDArray) Mean(axes ...int) NDArray {
 	for _, ax := range axes {
 		div *= a.shape[ax]
 	}
-	a.ForEach(func(dataIndex int, index []int, value float64) {
-		arr.data[arr.dataIndexBroadcast(index)] += value / float64(div)
+	walkAggr(a.shape, arr.shape, func(inIndex int, outIndex int) {
+		arr.data[outIndex] += a.data[inIndex]
 	})
+	for i := range arr.data {
+		arr.data[i] /= float64(div)
+	}
 
 	return arr
 }
 
 func (a NDArray) Max(axes ...int) NDArray {
 	arr := Constant(math.Inf(-1), AggrShape(a.shape, axes)...)
-	size := 1
-	off := make([]int, len(a.shape))
-	for i := len(a.shape) - 1; i >= 0; i-- {
-		off[i] = size
-		size *= a.shape[i]
-	}
-	var aggr func(int, int, int)
-	aggr = func(ii int, di int, adi int) {
-		if ii == len(axes) {
-			if a.data[di] > arr.data[adi] {
-				arr.data[adi] = a.data[di]
-			}
-		} else {
-			ax := axes[ii]
-			sz := off[ax]
-			for i := 0; i < a.shape[ax]; i++ {
-				aggr(ii+1, di, adi)
-				di += sz
-			}
+	walkAggr(a.shape, arr.shape, func(inIndex int, outIndex int) {
+		if a.data[inIndex] > arr.data[outIndex] {
+			arr.data[outIndex] = a.data[inIndex]
 		}
-	}
-	arr.ForEach(func(dataIndex int, index []int, value float64) {
-		di := a.dataIndex(index)
-		aggr(0, di, dataIndex)
 	})
 
 	return arr
