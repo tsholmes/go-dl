@@ -67,11 +67,13 @@ func BenchmarkModel(b *testing.B) {
 	pred := tensor.Softmax(t)
 	loss := tensor.CategoricalCrossEntropy(y, pred)
 
-	m.Compile(x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))
+	opt := model.SGDOptimizer{LR: 0.001}
+
+	m.Compile(&opt, x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		m.Train(X, Y, 0.01)
+		m.Train(X, Y)
 	}
 }

@@ -40,6 +40,14 @@ func RandomUniform(min float64, max float64, shape ...int) NDArray {
 	return arr
 }
 
+func RandomNormal(mean float64, stddev float64, shape ...int) NDArray {
+	arr := Zeros(shape...)
+	for i := range arr.data {
+		arr.data[i] = mean + rand.NormFloat64()*stddev
+	}
+	return arr
+}
+
 func BroadcastShape(aShape []int, bShape []int) []int {
 	if len(aShape) > len(bShape) {
 		return BroadcastShape(bShape, aShape)

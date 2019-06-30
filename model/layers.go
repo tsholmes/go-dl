@@ -27,7 +27,7 @@ func Dense(m *Model, x tensor.Tensor, size int, useBias bool) tensor.Tensor {
 	if useBias {
 		bShape := onesLike(x)
 		bShape[axis] = size
-		bias := m.AddWeight(bShape...)
+		bias := m.AddBias(bShape...)
 
 		x = tensor.Add(x, bias)
 	}
@@ -46,7 +46,7 @@ func Conv2D(m *Model, x tensor.Tensor, kernelH int, kernelW int, filters int) te
 	biasShape[fAxis] = filters
 
 	weight := m.AddWeight(kernelH, kernelW, inFilters, filters)
-	bias := m.AddWeight(biasShape...)
+	bias := m.AddBias(biasShape...)
 
 	x = tensor.Conv2D(x, weight, hAxis, wAxis, fAxis)
 	x = tensor.Add(x, bias)
@@ -72,7 +72,7 @@ func ConstructedConv2D(m *Model, x tensor.Tensor, kernelH int, kernelW int, filt
 	bShape[fAxis] = filters
 
 	weight := m.AddWeight(wShape...)
-	bias := m.AddWeight(bShape...)
+	bias := m.AddBias(bShape...)
 
 	slices := make([]tensor.Tensor, 0, kernelH*kernelW)
 

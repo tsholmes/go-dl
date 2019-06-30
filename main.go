@@ -24,7 +24,7 @@ func main() {
 	Xtest := XTestFull.Split(0, batchSize)
 	Ytest := YTestFull.Split(0, batchSize)
 
-	X, Y, Xtest, Ytest = X[:600], Y[:600], Xtest[:100], Ytest[:100]
+	X, Y, Xtest, Ytest = X[:60], Y[:60], Xtest[:10], Ytest[:10]
 
 	l1Size := 16
 	l2Size := 32
@@ -55,12 +55,12 @@ func main() {
 	pred := tensor.Softmax(t)
 	loss := tensor.CategoricalCrossEntropy(y, pred)
 
-	m.Compile(x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))
-	// m.ClipGradients(1.0)
-	// m.L2(0.01)
+	const lr = 1e-3
+	opt := model.SGDMomentumOptimizer{LR: lr, Momentum: 0.1, Nesterov: true}
+
+	m.Compile(&opt, x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))
 
 	const epochs = 10
-	const lr = 2e-3
 
 	index := make([]int, len(X))
 	for i := range index {
@@ -75,7 +75,7 @@ func main() {
 			idx := index[i]
 			bX, bY := X[idx], Y[idx]
 			start := time.Now()
-			bloss, bmet := m.Train(bX, bY, lr)
+			bloss, bmet := m.Train(bX, bY)
 			workingLoss += bloss
 			workingAcc += bmet[0]
 			end := time.Now()
