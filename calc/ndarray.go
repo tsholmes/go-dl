@@ -215,9 +215,8 @@ func (a NDArray) Fill(value float64) {
 }
 
 func (a NDArray) SetSlice(b NDArray, axis int, offset int) {
-	b.ForEach(func(dataIndex int, index []int, value float64) {
-		index[axis] += offset
-		a.Set(index, value)
+	walkSlice(a.shape, b.shape, axis, offset, func(inIndex int, outIndex int) {
+		a.data[inIndex] = b.data[outIndex]
 	})
 }
 
@@ -374,9 +373,8 @@ func (a NDArray) Slice(axis int, start int, end int) NDArray {
 	outShape[axis] = end - start
 
 	arr := Zeros(outShape...)
-	arr.ForEach(func(dataIndex int, index []int, value float64) {
-		index[axis] += start
-		arr.data[dataIndex] = a.Get(index)
+	walkSlice(a.shape, outShape, axis, start, func(inIndex int, outIndex int) {
+		arr.data[outIndex] = a.data[inIndex]
 	})
 	return arr
 }
