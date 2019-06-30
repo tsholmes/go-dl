@@ -875,31 +875,46 @@ func (a NDArray) InverseNormalize(g NDArray, axis int) NDArray {
 
 	mean := make([]float64, size)
 	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
-		mean[outIndex] += a.data[inIndex] / div
+		mean[outIndex] += a.data[inIndex]
+	})
+	for i := range mean {
+		mean[i] /= div
+	}
+
+	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+		arr.data[inIndex] = a.data[inIndex] - mean[outIndex]
 	})
 
 	stddev := make([]float64, size)
-	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
-		v := a.data[inIndex] - mean[outIndex]
-		stddev[outIndex] += v * v
-	})
-	for i := range stddev {
-		stddev[i] = math.Sqrt(stddev[i] / div)
+	if axis == len(a.shape)-1 {
+		blasStddev(arr.data, stddev)
+	} else {
+		walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+			v := arr.data[inIndex]
+			stddev[outIndex] += v * v
+		})
+		for i := range stddev {
+			stddev[i] = math.Sqrt(stddev[i] / div)
+		}
 	}
 
 	dVariance := make([]float64, size)
-	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
-		s := stddev[outIndex]
-		dVariance[outIndex] += g.data[inIndex] * (a.data[inIndex] - mean[outIndex]) * -0.5 / (s * s * s)
-	})
+	if axis == len(a.shape)-1 {
+		blasDVariance(arr.data, g.data, stddev, dVariance)
+	} else {
+		walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
+			s := stddev[outIndex]
+			dVariance[outIndex] += g.data[inIndex] * arr.data[inIndex] * -0.5 / (s * s * s)
+		})
+	}
 
 	dMean := make([]float64, size)
 	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
-		dMean[outIndex] += g.data[inIndex]*-1.0/stddev[outIndex] + dVariance[outIndex]*-2*(a.data[inIndex]-mean[outIndex])/div
+		dMean[outIndex] += g.data[inIndex]*-1.0/stddev[outIndex] + dVariance[outIndex]*-2*arr.data[inIndex]/div
 	})
 
 	walkAggr(a.shape, aggrShape, func(inIndex int, outIndex int) {
-		arr.data[inIndex] = g.data[inIndex]/stddev[outIndex] + dVariance[outIndex]*2*(a.data[inIndex]-mean[outIndex])/div + dMean[outIndex]/div
+		arr.data[inIndex] = g.data[inIndex]/stddev[outIndex] + dVariance[outIndex]*2*arr.data[inIndex]/div + dMean[outIndex]/div
 	})
 
 	return arr

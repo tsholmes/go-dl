@@ -107,3 +107,33 @@ func blasInverseConv2D(a NDArray, g NDArray, arr NDArray) {
 		}
 	}
 }
+
+func blasStddev(data []float64, stddev []float64) {
+	sz := len(stddev)
+	sz2 := len(data) / sz
+	for i := 0; i < sz; i++ {
+		stddev[i] = blas64.Nrm2(blas64.Vector{
+			N:    sz2,
+			Data: data[i:],
+			Inc:  sz,
+		}) / float64(sz2)
+	}
+}
+
+func blasDVariance(a []float64, g []float64, stddev []float64, dVariance []float64) {
+	sz := len(stddev)
+	sz2 := len(a) / sz
+
+	for i := 0; i < sz; i++ {
+		s := stddev[i]
+		dVariance[i] = blas64.Dot(blas64.Vector{
+			N:    sz2,
+			Data: a[i:],
+			Inc:  sz,
+		}, blas64.Vector{
+			N:    sz2,
+			Data: g[i:],
+			Inc:  sz,
+		}) * -0.5 / (s * s * s)
+	}
+}
