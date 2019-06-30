@@ -39,14 +39,17 @@ func main() {
 	var t tensor.Tensor = tensor.Reshape(x, batchSize, 28, 28, 1)
 
 	t = model.Conv2D(m, t, 3, 3, l1Size)
+	t = model.BatchNormalization(m, t)
 	t = tensor.ReLU(t)
 	t = model.MaxPooling2D(m, t, 2, 2)
 
 	t = model.Conv2D(m, t, 3, 3, l2Size)
+	t = model.BatchNormalization(m, t)
 	t = tensor.ReLU(t)
 	t = model.MaxPooling2D(m, t, 2, 2)
 
 	t = model.Conv2D(m, t, 3, 3, l3Size)
+	t = model.BatchNormalization(m, t)
 	t = tensor.ReLU(t)
 
 	t = tensor.Flatten(t, 1)
@@ -56,7 +59,7 @@ func main() {
 	pred := tensor.Softmax(t)
 	loss := tensor.CategoricalCrossEntropy(y, pred)
 
-	const lr = 1e-3
+	const lr = 1e-2
 	opt := model.SGDMomentumOptimizer{LR: lr, Momentum: 0.1, Nesterov: true}
 
 	m.Compile(&opt, x, y, pred, loss, tensor.CategoricalAccuracy(y, pred))

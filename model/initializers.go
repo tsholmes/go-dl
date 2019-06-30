@@ -31,3 +31,7 @@ func LecunNormal(shape ...int) calc.NDArray {
 func Zeros(shape ...int) calc.NDArray {
 	return calc.Zeros(shape...)
 }
+
+func Ones(shape ...int) calc.NDArray {
+	return calc.Ones(shape...)
+}

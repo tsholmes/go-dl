@@ -37,18 +37,16 @@ type Model struct {
 }
 
 func (m *Model) AddWeight(shape ...int) tensor.Tensor {
-	t := tensor.Input(shape...)
-	v := m.weightInitializer(shape...)
-
-	m.weights = append(m.weights, t)
-	m.weightVals = append(m.weightVals, v)
-
-	return t
+	return m.AddWeightWith(m.weightInitializer, shape...)
 }
 
 func (m *Model) AddBias(shape ...int) tensor.Tensor {
+	return m.AddWeightWith(m.biasInitializer, shape...)
+}
+
+func (m *Model) AddWeightWith(init Initializer, shape ...int) tensor.Tensor {
 	t := tensor.Input(shape...)
-	v := m.biasInitializer(shape...)
+	v := init(shape...)
 
 	m.weights = append(m.weights, t)
 	m.weightVals = append(m.weightVals, v)

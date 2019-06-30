@@ -154,3 +154,25 @@ func MaxPooling2D(m *Model, x tensor.Tensor, poolH int, poolW int) tensor.Tensor
 
 	return x
 }
+
+func BatchNormalization(m *Model, x tensor.Tensor) tensor.Tensor {
+	lastAxis := len(x.Shape()) - 1
+	allAxes := make([]int, lastAxis)
+	for i := range allAxes {
+		allAxes[i] = i
+	}
+
+	mean := tensor.Mean(x, allAxes...)
+	centered := tensor.Sub(x, mean)
+	variance := tensor.Mean(tensor.PowConstant(centered, 2.0), allAxes...)
+
+	norm := tensor.Div(centered, tensor.PowConstant(variance, 0.5))
+
+	wShape := onesLike(x)
+	wShape[lastAxis] = x.Shape()[lastAxis]
+
+	gamma := m.AddWeightWith(Ones, wShape...)
+	beta := m.AddWeightWith(Zeros, wShape...)
+
+	return tensor.Add(tensor.Mul(norm, gamma), beta)
+}
