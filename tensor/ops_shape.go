@@ -1,9 +1,5 @@
 package tensor
 
-import (
-	"github.com/tsholmes/go-dl/calc"
-)
-
 func Concat(axis int, as ...Tensor) Tensor {
 	return &ConcatTensor{
 		baseTensor: base(concat(axis, as...), 0, as...),
@@ -42,7 +38,7 @@ func (g *gradientVisitor) VisitConcat(t *ConcatTensor) {
 
 func Slice(t Tensor, axis int, start int, end int) Tensor {
 	return &SliceTensor{
-		baseTensor: base(resize(t, axis, end-start), 0, t),
+		baseTensor: base(resize(t, axis, end-start), 1, t),
 		t:          t,
 		axis:       axis,
 		start:      start,
@@ -62,7 +58,8 @@ func (t *SliceTensor) Visit(v TensorVisitor) { v.VisitSlice(t) }
 
 func (e *evaluationVisitor) VisitSlice(t *SliceTensor) {
 	v := e.value(t.t)
-	e.values[t.ID()] = v.Slice(t.axis, t.start, t.end)
+	o := t.values[0]
+	e.values[t.ID()] = v.SliceInto(t.axis, t.start, t.end, o)
 }
 
 func (g *gradientVisitor) VisitSlice(t *SliceTensor) {
@@ -73,7 +70,7 @@ func (g *gradientVisitor) VisitSlice(t *SliceTensor) {
 
 func Unslice(t Tensor, axis int, size int, offset int) Tensor {
 	return &UnsliceTensor{
-		baseTensor: base(resize(t, axis, size), 0, t),
+		baseTensor: base(resize(t, axis, size), 1, t),
 		t:          t,
 		axis:       axis,
 		size:       size,
@@ -93,9 +90,9 @@ func (t *UnsliceTensor) Visit(v TensorVisitor) { v.VisitUnslice(t) }
 
 func (e *evaluationVisitor) VisitUnslice(t *UnsliceTensor) {
 	v := e.value(t.t)
-	v2 := calc.Zeros(t.Shape()...)
-	v2.SetSlice(v, t.axis, t.offset)
-	e.values[t.ID()] = v2
+	o := t.values[0]
+	o.SetSlice(v, t.axis, t.offset)
+	e.values[t.ID()] = o
 }
 
 func (g *gradientVisitor) VisitUnslice(t *UnsliceTensor) {

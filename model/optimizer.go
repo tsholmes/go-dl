@@ -13,7 +13,7 @@ type SGDOptimizer struct {
 func (o *SGDOptimizer) UpdateWeights(weights []calc.NDArray, grads []calc.NDArray) {
 	for i := range weights {
 		w, g := weights[i], grads[i]
-		weights[i] = w.Add(g.MulConstant(-o.LR))
+		weights[i] = w.AddInto(g.MulConstant(-o.LR), w)
 	}
 }
 
@@ -37,9 +37,9 @@ func (o *SGDMomentumOptimizer) UpdateWeights(weights []calc.NDArray, grads []cal
 
 		o.moments[i] = o.moments[i].MulConstant(o.Momentum).Add(g.MulConstant(-o.LR))
 		if o.Nesterov {
-			weights[i] = w.Add(o.moments[i].MulConstant(o.Momentum).Add(g.MulConstant(-o.LR)))
+			weights[i] = w.AddInto(o.moments[i].MulConstant(o.Momentum).Add(g.MulConstant(-o.LR)), w)
 		} else {
-			weights[i] = w.Add(o.moments[i])
+			weights[i] = w.AddInto(o.moments[i], w)
 		}
 	}
 }

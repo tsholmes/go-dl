@@ -133,7 +133,7 @@ func (g *gradientVisitor) VisitEqualMask(t *EqualMaskTensor) {
 
 func ReLU(t Tensor) Tensor {
 	return &ReLUTensor{
-		baseTensor: base(t.Shape(), 0, t),
+		baseTensor: base(t.Shape(), 1, t),
 		t:          t,
 	}
 }
@@ -147,7 +147,8 @@ func (t *ReLUTensor) Visit(v TensorVisitor) { v.VisitReLU(t) }
 
 func (e *evaluationVisitor) VisitReLU(t *ReLUTensor) {
 	v := e.value(t.t)
-	e.values[t.ID()] = v.ReLU()
+	o := t.values[0]
+	e.values[t.ID()] = v.ReLUInto(o)
 }
 
 func (g *gradientVisitor) VisitReLU(t *ReLUTensor) {
@@ -159,7 +160,7 @@ func (g *gradientVisitor) VisitReLU(t *ReLUTensor) {
 // Zeroes out all values in t where the corresponding value in m is negative
 func ReLUMask(t Tensor, m Tensor) Tensor {
 	return &ReLUMaskTensor{
-		baseTensor: base(t.Shape(), 0, t, m),
+		baseTensor: base(t.Shape(), 1, t, m),
 		t:          t,
 		m:          m,
 	}
@@ -176,7 +177,8 @@ func (t *ReLUMaskTensor) Visit(v TensorVisitor) { v.VisitReLUMask(t) }
 func (e *evaluationVisitor) VisitReLUMask(t *ReLUMaskTensor) {
 	v := e.value(t.t)
 	mv := e.value(t.m)
-	e.values[t.ID()] = v.ReLUMask(mv)
+	o := t.values[0]
+	e.values[t.ID()] = v.ReLUMaskInto(mv, o)
 }
 
 func (g *gradientVisitor) VisitReLUMask(t *ReLUMaskTensor) {

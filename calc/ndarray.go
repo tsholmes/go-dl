@@ -371,7 +371,11 @@ func (a NDArray) Slice(axis int, start int, end int) NDArray {
 	outShape[axis] = end - start
 
 	arr := Zeros(outShape...)
-	walkSlice(a.shape, outShape, axis, start, func(inIndex int, outIndex int) {
+	return a.SliceInto(axis, start, end, arr)
+}
+
+func (a NDArray) SliceInto(axis int, start int, end int, arr NDArray) NDArray {
+	walkSlice(a.shape, arr.shape, axis, start, func(inIndex int, outIndex int) {
 		arr.data[outIndex] = a.data[inIndex]
 	})
 	return arr
@@ -741,7 +745,10 @@ func (a NDArray) InverseConv2DInto(g NDArray, hAxis int, wAxis int, fAxis int, a
 
 func (a NDArray) ReLU() NDArray {
 	arr := Zeros(a.shape...)
+	return a.ReLUInto(arr)
+}
 
+func (a NDArray) ReLUInto(arr NDArray) NDArray {
 	for i, v := range a.data {
 		if v > 0. {
 			arr.data[i] = v
@@ -753,7 +760,10 @@ func (a NDArray) ReLU() NDArray {
 
 func (a NDArray) ReLUMask(m NDArray) NDArray {
 	arr := Zeros(BroadcastShape(a.shape, m.shape)...)
+	return a.ReLUMaskInto(m, arr)
+}
 
+func (a NDArray) ReLUMaskInto(m NDArray, arr NDArray) NDArray {
 	if ShapeEqual(a.shape, m.shape) {
 		for i := range arr.data {
 			if m.data[i] > 0 {
@@ -815,7 +825,10 @@ func (a NDArray) SliceRoot(start int, length int) NDArray {
 
 func (a NDArray) Normalize(axis int) NDArray {
 	arr := Zeros(a.shape...)
+	return a.NormalizeInto(axis, arr)
+}
 
+func (a NDArray) NormalizeInto(axis int, arr NDArray) NDArray {
 	aggrShape := make([]int, len(a.shape))
 	for i := range aggrShape {
 		if i == axis {
@@ -856,6 +869,10 @@ func (a NDArray) Normalize(axis int) NDArray {
 
 func (a NDArray) InverseNormalize(g NDArray, axis int) NDArray {
 	arr := Zeros(a.shape...)
+	return a.InverseNormalizeInto(g, axis, arr)
+}
+
+func (a NDArray) InverseNormalizeInto(g NDArray, axis int, arr NDArray) NDArray {
 	aggrShape := make([]int, len(a.shape))
 	for i := range aggrShape {
 		if i == axis {

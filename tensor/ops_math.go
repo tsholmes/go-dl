@@ -241,7 +241,7 @@ func (g *gradientVisitor) VisitExp(t *ExpTensor) {
 
 func Normalize(t Tensor, axis int) Tensor {
 	return &NormalizeTensor{
-		baseTensor: base(t.Shape(), 0, t),
+		baseTensor: base(t.Shape(), 1, t),
 		t:          t,
 		axis:       axis,
 	}
@@ -257,7 +257,8 @@ func (t *NormalizeTensor) Visit(v TensorVisitor) { v.VisitNormalize(t) }
 
 func (e *evaluationVisitor) VisitNormalize(t *NormalizeTensor) {
 	v := e.value(t.t)
-	e.values[t.ID()] = v.Normalize(t.axis)
+	o := t.values[0]
+	e.values[t.ID()] = v.NormalizeInto(t.axis, o)
 }
 
 func (g *gradientVisitor) VisitNormalize(t *NormalizeTensor) {
@@ -268,7 +269,7 @@ func (g *gradientVisitor) VisitNormalize(t *NormalizeTensor) {
 
 func InverseNormalize(t Tensor, g Tensor, axis int) Tensor {
 	return &InverseNormalizeTensor{
-		baseTensor: base(t.Shape(), 0, t, g),
+		baseTensor: base(t.Shape(), 1, t, g),
 		t:          t,
 		g:          g,
 		axis:       axis,
@@ -286,7 +287,8 @@ func (t *InverseNormalizeTensor) Visit(v TensorVisitor) { v.VisitInverseNormaliz
 
 func (e *evaluationVisitor) VisitInverseNormalize(t *InverseNormalizeTensor) {
 	v, g := e.value(t.t), e.value(t.g)
-	e.values[t.ID()] = v.InverseNormalize(g, t.axis)
+	o := t.values[0]
+	e.values[t.ID()] = v.InverseNormalizeInto(g, t.axis, o)
 }
 
 func (g *gradientVisitor) VisitInverseNormalize(t *InverseNormalizeTensor) {
