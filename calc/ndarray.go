@@ -752,6 +752,8 @@ func (a NDArray) ReLUInto(arr NDArray) NDArray {
 	for i, v := range a.data {
 		if v > 0. {
 			arr.data[i] = v
+		} else {
+			arr.data[i] = 0.
 		}
 	}
 
@@ -768,6 +770,8 @@ func (a NDArray) ReLUMaskInto(m NDArray, arr NDArray) NDArray {
 		for i := range arr.data {
 			if m.data[i] > 0 {
 				arr.data[i] = a.data[i]
+			} else {
+				arr.data[i] = 0.
 			}
 		}
 	} else {
@@ -777,6 +781,8 @@ func (a NDArray) ReLUMaskInto(m NDArray, arr NDArray) NDArray {
 
 			if m.data[mIndex] > 0 {
 				arr.data[dataIndex] = a.data[aIndex]
+			} else {
+				arr.data[dataIndex] = 0.
 			}
 		})
 	}
