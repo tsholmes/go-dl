@@ -815,3 +815,42 @@ func (a NDArray) ReLUMask(m NDArray) NDArray {
 
 	return arr
 }
+
+func (a NDArray) ReindexRoot(indices []int) NDArray {
+	if len(indices) != a.shape[0] {
+		// TODO: PANIC
+	}
+
+	arr := Zeros(a.shape...)
+
+	topSz := 1
+	for _, sz := range a.shape[1:] {
+		topSz *= sz
+	}
+
+	for i, idx := range indices {
+		inIndex := i * topSz
+		outIndex := idx * topSz
+		for j, v := range a.data[inIndex : inIndex+topSz] {
+			arr.data[outIndex+j] = v
+		}
+	}
+
+	return arr
+}
+
+func (a NDArray) SliceRoot(start int, length int) NDArray {
+	topSz := 1
+	for _, sz := range a.shape[1:] {
+		topSz *= sz
+	}
+
+	newShape := make([]int, len(a.shape))
+	copy(newShape, a.shape)
+	newShape[0] = length
+
+	return NDArray{
+		data:  a.data[start*topSz : start*topSz+length*topSz],
+		shape: newShape,
+	}
+}

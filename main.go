@@ -18,13 +18,14 @@ func main() {
 
 	batchSize := 100
 
-	Xfull, Yfull, XTestFull, YTestFull := dataset.LoadMNIST()
-	X := Xfull.Split(0, batchSize)
-	Y := Yfull.Split(0, batchSize)
-	Xtest := XTestFull.Split(0, batchSize)
-	Ytest := YTestFull.Split(0, batchSize)
+	X, Y, Xtest, Ytest := dataset.LoadMNIST()
 
-	X, Y, Xtest, Ytest = X[:60], Y[:60], Xtest[:10], Ytest[:10]
+	trainBatches := 60
+	testBatches := 10
+	trainSamples := batchSize * trainBatches
+	testSamples := batchSize * testBatches
+
+	X, Y, Xtest, Ytest = X.SliceRoot(0, trainSamples), Y.SliceRoot(0, trainSamples), Xtest.SliceRoot(0, testSamples), Ytest.SliceRoot(0, testSamples)
 
 	l1Size := 16
 	l2Size := 32
@@ -62,34 +63,36 @@ func main() {
 
 	const epochs = 10
 
-	index := make([]int, len(X))
+	index := make([]int, trainSamples)
 	for i := range index {
 		index[i] = i
 	}
 
 	for epoch := 0; epoch < epochs; epoch++ {
 		rand.Shuffle(len(index), func(i, j int) { index[i], index[j] = index[j], index[i] })
+		X = X.ReindexRoot(index)
+		Y = Y.ReindexRoot(index)
+
 		workingLoss := 0.0
 		workingAcc := 0.0
-		for i := range X {
-			idx := index[i]
-			bX, bY := X[idx], Y[idx]
+		for i := 0; i < trainBatches; i++ {
+			bX, bY := X.SliceRoot(i*batchSize, batchSize), Y.SliceRoot(i*batchSize, batchSize)
 			start := time.Now()
 			bloss, bmet := m.Train(bX, bY)
 			workingLoss += bloss
 			workingAcc += bmet[0]
 			end := time.Now()
-			fmt.Printf("epoch %d/%d train batch %d/%d train loss %f train acc %f duration %s\n", epoch, epochs, i, len(X), workingLoss/float64(i+1), workingAcc/float64(i+1), end.Sub(start).String())
+			fmt.Printf("epoch %d/%d train batch %d/%d train loss %f train acc %f duration %s\n", epoch, epochs, i, trainBatches, workingLoss/float64(i+1), workingAcc/float64(i+1), end.Sub(start).String())
 		}
 
 		workingLoss = 0.0
 		workingAcc = 0.0
-		for i := range Xtest {
-			bX, bY := Xtest[i], Ytest[i]
+		for i := 0; i < testBatches; i++ {
+			bX, bY := Xtest.SliceRoot(i*batchSize, batchSize), Ytest.SliceRoot(i*batchSize, batchSize)
 			bloss, bmet := m.Test(bX, bY)
 			workingLoss += bloss
 			workingAcc += bmet[0]
-			fmt.Printf("epoch %d/%d test batch %d/%d test loss %f test acc %f\n", epoch, epochs, i, len(Xtest), workingLoss/float64(i+1), workingAcc/float64(i+1))
+			fmt.Printf("epoch %d/%d test batch %d/%d test loss %f test acc %f\n", epoch, epochs, i, testBatches, workingLoss/float64(i+1), workingAcc/float64(i+1))
 		}
 	}
 }
