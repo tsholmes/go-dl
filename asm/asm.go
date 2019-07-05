@@ -26,18 +26,23 @@ func ScalMulConstant(arr []float64, c float64) {
 }
 
 // Sized to stay inside 1 memory page
-const maxChunkSize = 30 * 13
+const maxChunkSize = 28 * 11
 
 func CompileMulConstant(N int) func([]float64, float64) {
 	bigChunks := N / maxChunkSize
 	extra := N % maxChunkSize
 
-	b, err := asm.NewBuilder("amd64", N*3+10)
+	b, err := asm.NewBuilder("amd64", maxChunkSize*3+10)
 	if err != nil {
 		panic(err)
 	}
-	movq(b, aregOff(x86.REG_SP, 0x8), reg(x86.REG_SI))     // SI == arr.data.ptr
-	movddup(b, aregOff(x86.REG_SP, 0x20), reg(x86.REG_X0)) // X0 = c
+	movq(b, aregOff(x86.REG_SP, 0x8), reg(x86.REG_SI)) // SI == arr.data.ptr
+	if N%4 != 0 {
+		movddup(b, aregOff(x86.REG_SP, 0x20), reg(x86.REG_X0)) // X0 = c, c
+	}
+	if N >= 4 {
+		vbroadcastsd(b, aregOff(x86.REG_SP, 0x20), reg(x86.REG_Y0)) // Y0 = c, c, c, c
+	}
 
 	// If we have more than one chunk, keep a iteration counter
 	if bigChunks > 1 {
@@ -102,7 +107,7 @@ func makeFunc(f interface{}, data []byte) {
 		-1,
 		0,
 		pageCount*pageSize,
-		syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC,
+		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_PRIVATE|syscall.MAP_ANON,
 	)
 
@@ -110,6 +115,11 @@ func makeFunc(f interface{}, data []byte) {
 		panic(err)
 	}
 	copy(emem, data)
+
+	// It's WAYYY faster to write without exec, and then swap to ro/exec
+	if err := syscall.Mprotect(emem, syscall.PROT_READ|syscall.PROT_EXEC); err != nil {
+		panic(err)
+	}
 
 	eslice := *(*reflect.SliceHeader)(unsafe.Pointer(&emem))
 

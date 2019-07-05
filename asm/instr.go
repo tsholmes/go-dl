@@ -61,6 +61,16 @@ func _two(b *asm.Builder, op obj.As, from obj.Addr, to obj.Addr) *obj.Prog {
 	return p
 }
 
+func _three(b *asm.Builder, op obj.As, from obj.Addr, from2 obj.Addr, to obj.Addr) *obj.Prog {
+	p := b.NewProg()
+	p.As = op
+	p.From = from
+	p.RestArgs = []obj.Addr{from2}
+	p.To = to
+	b.AddInstruction(p)
+	return p
+}
+
 func _jump(b *asm.Builder, op obj.As, to *obj.Prog) *obj.Prog {
 	p := b.NewProg()
 	p.As = op
@@ -82,8 +92,16 @@ func movddup(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
 	return _two(b, x86.AMOVDDUP, from, to)
 }
 
+func vbroadcastsd(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
+	return _two(b, x86.AVBROADCASTSD, from, to)
+}
+
 func movups(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
 	return _two(b, x86.AMOVUPS, from, to)
+}
+
+func vmovups(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
+	return _two(b, x86.AVMOVUPS, from, to)
 }
 
 func xorl(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
@@ -100,6 +118,10 @@ func mulsd(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
 
 func mulpd(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
 	return _two(b, x86.AMULPD, from, to)
+}
+
+func vmulpd(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
+	return _three(b, x86.AVMULPD, from, to, to)
 }
 
 func incq(b *asm.Builder, to obj.Addr) *obj.Prog {
