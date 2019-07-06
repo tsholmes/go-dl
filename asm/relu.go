@@ -14,7 +14,7 @@ func LoopReLU(arr []float64) {
 	}
 }
 
-const reluChunkSize = 32 * 11
+const reluChunkSize = 4 * 4
 
 func CompileReLU(N int) func([]float64) {
 	bigChunks := N / reluChunkSize
@@ -59,7 +59,7 @@ func CompileReLU(N int) func([]float64) {
 }
 
 func compileReLUChunk(N int, b *asm.Builder) *obj.Prog {
-	blockSize := 32
+	blockSize := 4
 	var first *obj.Prog
 	for i := 0; i+blockSize <= N; i += blockSize {
 		p := frelumask(b, blockSize, x86.REG_SI, i, 1)
