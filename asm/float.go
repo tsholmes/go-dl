@@ -154,3 +154,36 @@ func fmaskstore(b *asm.Builder, N int, addr int16, idx int, res int) {
 		}
 	}
 }
+
+func freluload(b *asm.Builder, N int, addr int16, idx int, res int) (p *obj.Prog) {
+	if N < 1 || N+res*4 > 64 {
+		panic(N)
+	}
+	for i := 0; i < N; i += 4 {
+		var ip *obj.Prog
+		switch N - i {
+		case 1:
+			// single in X
+			ip = vcmpsd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
+			vmaskmovps(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
+		case 2:
+			// double in X
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
+		case 3:
+			// double+single in X
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
+			vcmpsd(b, aregOff(addr, (idx+i+2)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res+1]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
+			vmaskmovps(b, aregOff(addr, (idx+i+2)*8), reg(fRegs128[i/4+res+1]), reg(fRegs128[i/4+res+1]))
+		default:
+			// normal quad in Y
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_Y0), reg(fRegs256[i/4+res]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs256[i/4+res]), reg(fRegs256[i/4+res]))
+		}
+		if i == 0 {
+			p = ip
+		}
+	}
+	return p
+}

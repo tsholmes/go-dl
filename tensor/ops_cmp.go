@@ -1,5 +1,7 @@
 package tensor
 
+import "github.com/tsholmes/go-dl/asm"
+
 func Abs(t Tensor) Tensor {
 	return &AbsTensor{
 		baseTensor: base(t.Shape(), 0, t),
@@ -132,15 +134,19 @@ func (g *gradientVisitor) VisitEqualMask(t *EqualMaskTensor) {
 }
 
 func ReLU(t Tensor) Tensor {
-	return &ReLUTensor{
+	rt := &ReLUTensor{
 		baseTensor: base(t.Shape(), 1, t),
 		t:          t,
 	}
+	rt.relu = asm.CompileReLUCopy(len(rt.values[0].Raw()))
+	return rt
 }
 
 type ReLUTensor struct {
 	baseTensor
 	t Tensor
+
+	relu func([]float64, []float64)
 }
 
 func (t *ReLUTensor) Visit(v TensorVisitor) { v.VisitReLU(t) }
@@ -148,7 +154,8 @@ func (t *ReLUTensor) Visit(v TensorVisitor) { v.VisitReLU(t) }
 func (e *evaluationVisitor) VisitReLU(t *ReLUTensor) {
 	v := e.value(t.t)
 	o := t.values[0]
-	e.values[t.ID()] = v.ReLUInto(o)
+	t.relu(v.Raw(), o.Raw())
+	e.values[t.ID()] = o
 }
 
 func (g *gradientVisitor) VisitReLU(t *ReLUTensor) {

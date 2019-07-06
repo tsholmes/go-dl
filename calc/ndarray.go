@@ -224,6 +224,10 @@ func (a NDArray) Shape() []int {
 	return a.shape
 }
 
+func (a NDArray) Raw() []float64 {
+	return a.data
+}
+
 func (a NDArray) String() string {
 	mods := make([]int, len(a.shape))
 	mods[len(a.shape)-1] = a.shape[len(a.shape)-1]

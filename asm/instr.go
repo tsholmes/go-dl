@@ -173,5 +173,6 @@ func ret(b *asm.Builder) {
 }
 
 const (
+	cmpLT = 0x01
 	cmpGT = 0x0E
 )
