@@ -71,6 +71,16 @@ func _three(b *asm.Builder, op obj.As, from obj.Addr, from2 obj.Addr, to obj.Add
 	return p
 }
 
+func _four(b *asm.Builder, op obj.As, from1 obj.Addr, from2 obj.Addr, from3 obj.Addr, to obj.Addr) *obj.Prog {
+	p := b.NewProg()
+	p.As = op
+	p.From = from1
+	p.RestArgs = []obj.Addr{from2, from3}
+	p.To = to
+	b.AddInstruction(p)
+	return p
+}
+
 func _jump(b *asm.Builder, op obj.As, to *obj.Prog) *obj.Prog {
 	p := b.NewProg()
 	p.As = op
@@ -124,6 +134,26 @@ func vmulpd(b *asm.Builder, from obj.Addr, to obj.Addr) *obj.Prog {
 	return _three(b, x86.AVMULPD, from, to, to)
 }
 
+func vxorps(b *asm.Builder, from1 obj.Addr, from2 obj.Addr, to obj.Addr) *obj.Prog {
+	return _three(b, x86.AVXORPS, from1, from2, to)
+}
+
+func vmaskmovps(b *asm.Builder, from obj.Addr, from2 obj.Addr, to obj.Addr) *obj.Prog {
+	return _three(b, x86.AVMASKMOVPS, from, from2, to)
+}
+
+func vmaskmovpd(b *asm.Builder, from obj.Addr, from2 obj.Addr, to obj.Addr) *obj.Prog {
+	return _three(b, x86.AVMASKMOVPD, from, from2, to)
+}
+
+func vcmpsd(b *asm.Builder, from obj.Addr, from2 obj.Addr, to obj.Addr, op byte) *obj.Prog {
+	return _four(b, x86.AVCMPSD, from, from2, obj.Addr{Type: obj.TYPE_CONST, Offset: int64(op)}, to)
+}
+
+func vcmppd(b *asm.Builder, from obj.Addr, from2 obj.Addr, to obj.Addr, op byte) *obj.Prog {
+	return _four(b, x86.AVCMPPD, obj.Addr{Type: obj.TYPE_CONST, Offset: int64(op)}, from, from2, to)
+}
+
 func incq(b *asm.Builder, to obj.Addr) *obj.Prog {
 	return _one(b, x86.AINCQ, to)
 }
@@ -141,3 +171,7 @@ func ret(b *asm.Builder) {
 	p.As = obj.ARET
 	b.AddInstruction(p)
 }
+
+const (
+	cmpGT = 0x0E
+)
