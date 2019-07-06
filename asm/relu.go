@@ -14,11 +14,13 @@ func LoopReLU(arr []float64) {
 	}
 }
 
-func CompileReLU(N int) func([]float64) {
-	bigChunks := N / maxChunkSize
-	extra := N % maxChunkSize
+const reluChunkSize = 32 * 11
 
-	b, err := asm.NewBuilder("amd64", maxChunkSize*3+10)
+func CompileReLU(N int) func([]float64) {
+	bigChunks := N / reluChunkSize
+	extra := N % reluChunkSize
+
+	b, err := asm.NewBuilder("amd64", reluChunkSize*3+10)
 	if err != nil {
 		panic(err)
 	}
@@ -33,11 +35,11 @@ func CompileReLU(N int) func([]float64) {
 	// if we have at least maxChunkSize, write the big loop
 	var bigStart *obj.Prog
 	if bigChunks > 0 {
-		bigStart = compileReLUChunk(maxChunkSize, b)
+		bigStart = compileReLUChunk(reluChunkSize, b)
 
 		if bigChunks > 1 || extra > 0 {
 			// if we are looping or there is an extra chunk, move the pointer
-			addq(b, constant(8*maxChunkSize), reg(x86.REG_SI))
+			addq(b, constant(8*reluChunkSize), reg(x86.REG_SI))
 		}
 		if bigChunks > 1 {
 			decq(b, reg(x86.REG_CX))
@@ -57,7 +59,7 @@ func CompileReLU(N int) func([]float64) {
 }
 
 func compileReLUChunk(N int, b *asm.Builder) *obj.Prog {
-	blockSize := 30
+	blockSize := 32
 	var first *obj.Prog
 	for i := 0; i+blockSize <= N; i += blockSize {
 		p := frelumask(b, blockSize, x86.REG_SI, i, 1)

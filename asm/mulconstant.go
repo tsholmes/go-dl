@@ -22,13 +22,13 @@ func ScalMulConstant(arr []float64, c float64) {
 }
 
 // Sized to stay inside 1 memory page
-const maxChunkSize = 28 * 11
+const mulChunkSize = 32 * 10
 
 func CompileMulConstant(N int) func([]float64, float64) {
-	bigChunks := N / maxChunkSize
-	extra := N % maxChunkSize
+	bigChunks := N / mulChunkSize
+	extra := N % mulChunkSize
 
-	b, err := asm.NewBuilder("amd64", maxChunkSize*3+10)
+	b, err := asm.NewBuilder("amd64", mulChunkSize*3+10)
 	if err != nil {
 		panic(err)
 	}
@@ -45,14 +45,14 @@ func CompileMulConstant(N int) func([]float64, float64) {
 		movq(b, constant(bigChunks), reg(x86.REG_CX))
 	}
 
-	// if we have at least maxChunkSize, write the big loop
+	// if we have at least mulChunkSize, write the big loop
 	var bigStart *obj.Prog
 	if bigChunks > 0 {
-		bigStart = compileMulChunk(maxChunkSize, b)
+		bigStart = compileMulChunk(mulChunkSize, b)
 
 		if bigChunks > 1 || extra > 0 {
 			// if we are looping or there is an extra chunk, move the pointer
-			addq(b, constant(8*maxChunkSize), reg(x86.REG_SI))
+			addq(b, constant(8*mulChunkSize), reg(x86.REG_SI))
 		}
 		if bigChunks > 1 {
 			_ = bigStart
@@ -73,7 +73,7 @@ func CompileMulConstant(N int) func([]float64, float64) {
 }
 
 func compileMulChunk(N int, b *asm.Builder) *obj.Prog {
-	blockSize := 30
+	blockSize := 32
 	var first *obj.Prog
 	// Do 4s in chunks
 	for i := 0; i+blockSize <= N; i += blockSize {
