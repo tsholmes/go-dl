@@ -82,7 +82,7 @@ func compileMulChunk(N int, b *asm.Builder) *obj.Prog {
 			first = p
 		}
 		fmul1(b, blockSize, x86.REG_SI, i, 1)
-		fstore1(b, blockSize, x86.REG_SI, i, 1)
+		fstore(b, blockSize, x86.REG_SI, i, 1, f256)
 	}
 	if n := N % blockSize; n != 0 {
 		p := fload1(b, n, x86.REG_SI, N-n, 1)
@@ -90,7 +90,7 @@ func compileMulChunk(N int, b *asm.Builder) *obj.Prog {
 			first = p
 		}
 		fmul1(b, n, x86.REG_SI, N-n, 1)
-		fstore1(b, n, x86.REG_SI, N-n, 1)
+		fstore(b, n, x86.REG_SI, N-n, 1, f256)
 	}
 	return first
 }

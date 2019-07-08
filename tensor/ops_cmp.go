@@ -134,27 +134,37 @@ func (g *gradientVisitor) VisitEqualMask(t *EqualMaskTensor) {
 }
 
 func ReLU(t Tensor) Tensor {
-	rt := &ReLUTensor{
+	return &ReLUTensor{
 		baseTensor: base(t.Shape(), 1, t),
 		t:          t,
 	}
-	rt.relu = asm.CompileReLUCopy(len(rt.values[0].Raw()))
-	return rt
 }
 
 type ReLUTensor struct {
 	baseTensor
 	t Tensor
 
-	relu func([]float64, []float64)
+	reluCopy func([]float64, []float64)
 }
 
 func (t *ReLUTensor) Visit(v TensorVisitor) { v.VisitReLU(t) }
 
+func (t *ReLUTensor) compile() {
+	if t.reluCopy == nil {
+		t.reluCopy = asm.CompileReLUCopy(len(t.values[0].Raw()))
+	}
+}
+
 func (e *evaluationVisitor) VisitReLU(t *ReLUTensor) {
 	v := e.value(t.t)
 	o := t.values[0]
-	t.relu(v.Raw(), o.Raw())
+
+	if shapeEq(v.Shape(), o.Shape()) {
+		t.compile()
+		t.reluCopy(v.Raw(), o.Raw())
+	} else {
+		v.ReLUInto(o)
+	}
 	e.values[t.ID()] = o
 }
 
@@ -177,15 +187,29 @@ type ReLUMaskTensor struct {
 	baseTensor
 	t Tensor
 	m Tensor
+
+	reluMask func([]float64, []float64, []float64)
 }
 
 func (t *ReLUMaskTensor) Visit(v TensorVisitor) { v.VisitReLUMask(t) }
+
+func (t *ReLUMaskTensor) compile() {
+	if t.reluMask == nil {
+		t.reluMask = asm.CompileReLUMask(len(t.values[0].Raw()))
+	}
+}
 
 func (e *evaluationVisitor) VisitReLUMask(t *ReLUMaskTensor) {
 	v := e.value(t.t)
 	mv := e.value(t.m)
 	o := t.values[0]
-	e.values[t.ID()] = v.ReLUMaskInto(mv, o)
+	if shapeEq(v.Shape(), mv.Shape()) {
+		t.compile()
+		t.reluMask(mv.Raw(), v.Raw(), o.Raw())
+	} else {
+		v.ReLUMaskInto(mv, o)
+	}
+	e.values[t.ID()] = o
 }
 
 func (g *gradientVisitor) VisitReLUMask(t *ReLUMaskTensor) {
