@@ -21,8 +21,7 @@ func ScalMulConstant(arr []float64, c float64) {
 	})
 }
 
-// Sized to stay inside 1 memory page
-const mulChunkSize = 32 * 10
+const mulChunkSize = 8 * 128
 
 func CompileMulConstant(N int) func([]float64, float64) {
 	bigChunks := N / mulChunkSize
@@ -73,24 +72,24 @@ func CompileMulConstant(N int) func([]float64, float64) {
 }
 
 func compileMulChunk(N int, b *asm.Builder) *obj.Prog {
-	blockSize := 32
+	blockSize := 8
 	var first *obj.Prog
 	// Do 4s in chunks
 	for i := 0; i+blockSize <= N; i += blockSize {
-		p := fload1(b, blockSize, x86.REG_SI, i, 1)
+		p := fload(b, blockSize, x86.REG_SI, i, 1, f128)
 		if i == 0 {
 			first = p
 		}
-		fmul1(b, blockSize, x86.REG_SI, i, 1)
-		fstore(b, blockSize, x86.REG_SI, i, 1, f256)
+		fmul(b, blockSize, x86.REG_SI, i, 1, f128)
+		fstore(b, blockSize, x86.REG_SI, i, 1, f128)
 	}
 	if n := N % blockSize; n != 0 {
-		p := fload1(b, n, x86.REG_SI, N-n, 1)
+		p := fload(b, n, x86.REG_SI, N-n, 1, f128)
 		if n == N {
 			first = p
 		}
-		fmul1(b, n, x86.REG_SI, N-n, 1)
-		fstore(b, n, x86.REG_SI, N-n, 1, f256)
+		fmul(b, n, x86.REG_SI, N-n, 1, f128)
+		fstore(b, n, x86.REG_SI, N-n, 1, f128)
 	}
 	return first
 }

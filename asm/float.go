@@ -74,26 +74,24 @@ func fCount(i int, N int, sz regSize) int {
 	return fN(sz)
 }
 
-func fload1(b *asm.Builder, N int, addr int16, idx int, res int) (p *obj.Prog) {
-	if N < 1 || N+res*4 > 64 {
-		panic(N)
-	}
-	for i := 0; i < N; i += 4 {
+func fload(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) (p *obj.Prog) {
+	valFN(N, res, sz)
+	for i := 0; i < N; i += fN(sz) {
 		var ip *obj.Prog
-		switch N - i {
+		switch fCount(i, N, sz) {
 		case 1:
 			// single in X
-			ip = movsd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]))
+			ip = movsd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[fRegI(i, res, sz)]))
 		case 2:
 			// double in X
-			ip = movups(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]))
+			ip = movups(b, aregOff(addr, (idx+i)*8), reg(fRegs128[fRegI(i, res, sz)]))
 		case 3:
 			// double+single in X
-			ip = movups(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]))
-			movsd(b, aregOff(addr, (idx+i+2)*8), reg(fRegs128[i/4+1+res]))
-		default:
+			ip = movups(b, aregOff(addr, (idx+i)*8), reg(fRegs128[fRegI(i, res, sz)]))
+			movsd(b, aregOff(addr, (idx+i+2)*8), reg(fRegs128[fRegI(i, res, sz)+1]))
+		case 4:
 			// normal quad in Y
-			ip = vmovups(b, aregOff(addr, (idx+i)*8), reg(fRegs256[i/4+res]))
+			ip = vmovups(b, aregOff(addr, (idx+i)*8), reg(fRegs256[fRegI(i, res, sz)]))
 		}
 		if i == 0 {
 			p = ip
@@ -124,50 +122,46 @@ func fstore(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) {
 	}
 }
 
-func fmul1(b *asm.Builder, N int, addr int16, idx int, res int) {
+func fmul(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) {
 	// TODO: return if we need to later
-	if N < 1 || N+res*4 > 64 {
-		panic(N)
-	}
-	for i := 0; i < N; i += 4 {
-		switch N - i {
+	valFN(N, res, sz)
+	for i := 0; i < N; i += fN(sz) {
+		switch fCount(i, N, sz) {
 		case 1:
 			// single in X
-			mulsd(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]))
+			mulsd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]))
 		case 2:
 			// double in X
-			mulpd(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]))
+			mulpd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]))
 		case 3:
 			// double+single in X
-			mulpd(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]))
-			mulsd(b, reg(x86.REG_X0), reg(fRegs128[i/4+1+res]))
-		default:
+			mulpd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]))
+			mulsd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)+1]))
+		case 4:
 			// normal quad in Y
-			vmulpd(b, reg(x86.REG_Y0), reg(fRegs256[i/4+res]))
+			vmulpd(b, reg(x86.REG_Y0), reg(fRegs256[fRegI(i, res, sz)]))
 		}
 	}
 }
 
-func frelumask(b *asm.Builder, N int, addr int16, idx int, res int) (p *obj.Prog) {
-	if N < 1 || N+res*4 > 64 {
-		panic(N)
-	}
-	for i := 0; i < N; i += 4 {
+func frelumask(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) (p *obj.Prog) {
+	valFN(N, res, sz)
+	for i := 0; i < N; i += fN(sz) {
 		var ip *obj.Prog
-		switch N - i {
+		switch fCount(i, N, sz) {
 		case 1:
 			// single in X
-			ip = vcmpsd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpGT)
+			ip = vcmpsd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpGT)
 		case 2:
 			// double in X
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpGT)
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpGT)
 		case 3:
 			// double+single in X
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpGT)
-			vcmpsd(b, aregOff(addr, (idx+i+2)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res+1]), cmpGT)
-		default:
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpGT)
+			vcmpsd(b, aregOff(addr, (idx+i+2)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)+1]), cmpGT)
+		case 4:
 			// normal quad in Y
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_Y0), reg(fRegs256[i/4+res]), cmpGT)
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_Y0), reg(fRegs256[fRegI(i, res, sz)]), cmpGT)
 		}
 		if i == 0 {
 			p = ip
@@ -176,54 +170,50 @@ func frelumask(b *asm.Builder, N int, addr int16, idx int, res int) (p *obj.Prog
 	return p
 }
 
-func fmaskstore(b *asm.Builder, N int, addr int16, idx int, res int) {
-	if N < 1 || N+res*4 > 64 {
-		panic(N)
-	}
-	for i := 0; i < N; i += 4 {
-		switch N - i {
+func fmaskstore(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) {
+	valFN(N, res, sz)
+	for i := 0; i < N; i += fN(sz) {
+		switch fCount(i, N, sz) {
 		case 1:
 			// single in X
-			vmaskmovps(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]), aregOff(addr, (idx+i)*8))
+			vmaskmovps(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), aregOff(addr, (idx+i)*8))
 		case 2:
 			// double in X
-			vmaskmovpd(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]), aregOff(addr, (idx+i)*8))
+			vmaskmovpd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), aregOff(addr, (idx+i)*8))
 		case 3:
 			// double+single in X
-			vmaskmovpd(b, reg(x86.REG_X0), reg(fRegs128[i/4+res]), aregOff(addr, (idx+i)*8))
-			vmaskmovps(b, reg(x86.REG_X0), reg(fRegs128[i/4+res+1]), aregOff(addr, (idx+i+2)*8))
-		default:
+			vmaskmovpd(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), aregOff(addr, (idx+i)*8))
+			vmaskmovps(b, reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)+1]), aregOff(addr, (idx+i+2)*8))
+		case 4:
 			// normal quad in Y
-			vmaskmovpd(b, reg(x86.REG_Y0), reg(fRegs256[i/4+res]), aregOff(addr, (idx+i)*8))
+			vmaskmovpd(b, reg(x86.REG_Y0), reg(fRegs256[fRegI(i, res, sz)]), aregOff(addr, (idx+i)*8))
 		}
 	}
 }
 
-func freluload(b *asm.Builder, N int, addr int16, idx int, res int) (p *obj.Prog) {
-	if N < 1 || N+res*4 > 64 {
-		panic(N)
-	}
-	for i := 0; i < N; i += 4 {
+func freluload(b *asm.Builder, N int, addr int16, idx int, res int, sz regSize) (p *obj.Prog) {
+	valFN(N, res, sz)
+	for i := 0; i < N; i += fN(sz) {
 		var ip *obj.Prog
-		switch N - i {
+		switch fCount(i, N, sz) {
 		case 1:
 			// single in X
-			ip = vcmpsd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
-			vmaskmovps(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
+			ip = vcmpsd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpLT)
+			vmaskmovps(b, aregOff(addr, (idx+i)*8), reg(fRegs128[fRegI(i, res, sz)]), reg(fRegs128[fRegI(i, res, sz)]))
 		case 2:
 			// double in X
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
-			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[fRegI(i, res, sz)]), reg(fRegs128[fRegI(i, res, sz)]))
 		case 3:
 			// double+single in X
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res]), cmpLT)
-			vcmpsd(b, aregOff(addr, (idx+i+2)*8), reg(x86.REG_X0), reg(fRegs128[i/4+res+1]), cmpLT)
-			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[i/4+res]))
-			vmaskmovps(b, aregOff(addr, (idx+i+2)*8), reg(fRegs128[i/4+res+1]), reg(fRegs128[i/4+res+1]))
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)]), cmpLT)
+			vcmpsd(b, aregOff(addr, (idx+i+2)*8), reg(x86.REG_X0), reg(fRegs128[fRegI(i, res, sz)+1]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs128[i/4+res]), reg(fRegs128[fRegI(i, res, sz)]))
+			vmaskmovps(b, aregOff(addr, (idx+i+2)*8), reg(fRegs128[i/4+res+1]), reg(fRegs128[fRegI(i, res, sz)+1]))
 		default:
 			// normal quad in Y
-			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_Y0), reg(fRegs256[i/4+res]), cmpLT)
-			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs256[i/4+res]), reg(fRegs256[i/4+res]))
+			ip = vcmppd(b, aregOff(addr, (idx+i)*8), reg(x86.REG_Y0), reg(fRegs256[fRegI(i, res, sz)]), cmpLT)
+			vmaskmovpd(b, aregOff(addr, (idx+i)*8), reg(fRegs256[i/4+res]), reg(fRegs256[fRegI(i, res, sz)]))
 		}
 		if i == 0 {
 			p = ip

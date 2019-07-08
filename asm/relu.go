@@ -62,18 +62,18 @@ func compileReLUChunk(N int, b *asm.Builder) *obj.Prog {
 	blockSize := 4
 	var first *obj.Prog
 	for i := 0; i+blockSize <= N; i += blockSize {
-		p := frelumask(b, blockSize, x86.REG_SI, i, 1)
+		p := frelumask(b, blockSize, x86.REG_SI, i, 1, f128)
 		if i == 0 {
 			first = p
 		}
-		fmaskstore(b, blockSize, x86.REG_SI, i, 1)
+		fmaskstore(b, blockSize, x86.REG_SI, i, 1, f128)
 	}
 	if n := N % blockSize; n != 0 {
-		p := frelumask(b, n, x86.REG_SI, N-n, 1)
+		p := frelumask(b, n, x86.REG_SI, N-n, 1, f128)
 		if n == N {
 			first = p
 		}
-		fmaskstore(b, n, x86.REG_SI, N-n, 1)
+		fmaskstore(b, n, x86.REG_SI, N-n, 1, f128)
 	}
 	return first
 }
@@ -136,18 +136,18 @@ func compileReLUCopyChunk(N int, b *asm.Builder) *obj.Prog {
 	blockSize := 4
 	var first *obj.Prog
 	for i := 0; i+blockSize <= N; i += blockSize {
-		p := freluload(b, blockSize, x86.REG_SI, i, 1)
+		p := freluload(b, blockSize, x86.REG_SI, i, 1, f128)
 		if i == 0 {
 			first = p
 		}
-		fstore(b, blockSize, x86.REG_DI, i, 1, f256)
+		fstore(b, blockSize, x86.REG_DI, i, 1, f128)
 	}
 	if n := N % blockSize; n != 0 {
-		p := freluload(b, n, x86.REG_SI, N-n, 1)
+		p := freluload(b, n, x86.REG_SI, N-n, 1, f128)
 		if n == N {
 			first = p
 		}
-		fstore(b, n, x86.REG_DI, N-n, 1, f256)
+		fstore(b, n, x86.REG_DI, N-n, 1, f128)
 	}
 	return first
 }
